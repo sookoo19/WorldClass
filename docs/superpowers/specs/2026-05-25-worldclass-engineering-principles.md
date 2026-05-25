@@ -57,7 +57,8 @@ app/
 │   ├── ValueObjects/
 │   │   ├── SessionStatus.php     # enum: pending/confirmed/cancelled...
 │   │   ├── Money.php             # 金額（円単位）
-│   │   └── Rating.php            # ★1〜5
+│   │   ├── Rating.php            # ★1〜5
+│   │   └── FacilitatorOption.php # ファシリテーターオプション（enabled + fee）
 │   ├── Repositories/             # インターフェース
 │   │   ├── SessionRepositoryInterface.php
 │   │   ├── PartnerRepositoryInterface.php
@@ -130,6 +131,81 @@ public function store(CreateBookingRequest $request): Response
     return Inertia::render('Booking/Complete', ['session' => $output->session]);
 }
 ```
+
+### ファシリテーターオプションの設計方針
+
+**DBスキーマ（`sessions` テーブルへの追加）**
+
+```
+sessions
+  + with_facilitator  boolean  not null  default false
+  + facilitator_fee   integer  not null  default 0      ← 円単位、決済時の金額を記録
+```
+
+`facilitator_fee` を別カラムで保存することで、将来の料金改定があっても過去の予約金額が変わらない。
+
+**ValueObject: `FacilitatorOption`**
+
+```php
+// app/Domain/ValueObjects/FacilitatorOption.php
+final class FacilitatorOption
+{
+    public function __construct(
+        public readonly bool  $enabled,
+        public readonly Money $fee,
+    ) {}
+
+    public static function none(): self
+    {
+        return new self(false, Money::zero());
+    }
+
+    public static function forDuration(SessionDuration $duration): self
+    {
+        $fee = match ($duration->value) {
+            45 => Money::ofYen(2500),
+            60 => Money::ofYen(3000),
+        };
+        return new self(true, $fee);
+    }
+}
+```
+
+**UseCase（`CreateBookingInput` への追加）**
+
+```php
+// CreateBookingInput に追加
+public readonly FacilitatorOption $facilitatorOption,
+```
+
+料金計算は UseCase 内で完結させる：
+
+```php
+$totalAmount = $basePrice->add($input->facilitatorOption->fee);
+```
+
+**Stripeへの渡し方**
+
+Stripeには合算した `$totalAmount` を渡す。内訳はメタデータに記録する：
+
+```php
+'metadata' => [
+    'base_fee'          => $basePrice->toYen(),
+    'facilitator_fee'   => $input->facilitatorOption->fee->toYen(),
+    'with_facilitator'  => $input->facilitatorOption->enabled ? 'true' : 'false',
+],
+```
+
+**Filament管理画面**
+
+- 予約一覧に「🎙 ファシリテーター要」バッジを表示
+- 手動アサイン用メモ欄（`facilitator_note: text nullable`）を追加
+- 将来フェーズ：スタッフカレンダー連携による自動アサイン
+
+**オープンセッション**
+
+- `with_facilitator = true` 固定
+- `facilitator_fee = 0`（料金に内包されているため）
 
 ---
 
