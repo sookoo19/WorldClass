@@ -19,7 +19,7 @@ function Nav() {
         <div className="nav-cta">
           <a href="#waitlist" className="btn btn-orange btn-sm">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4 L 12 4 L 12 10 L 2 10 Z M 2 4 L 7 8 L 12 4" stroke="currentColor" strokeWidth="1.5" /></svg>
-            ウェイティングリスト
+            先行登録
           </a>
         </div>
       </div>
@@ -51,14 +51,14 @@ function Hero() {
             <p className="hero-sub">
               <strong style={{ color: "var(--ink)", fontWeight: 700 }}>世界を知ることは、子どもの未来の選択肢を広げること。</strong><br/>
               WorldClassは、ご家庭とアジア・アフリカの子どもたちや現地で活動する日本人をつなぐ国際交流プラットフォームです。<br />
-              45分のセッションで、本物の異文化体験を。<br />
+              45分の交流で、本物の異文化体験を。<br />
               あなたが払う料金の半分は、現地の教育施設へ届きます。<br />
               学ぶことが、そのまま支援になる。<br />
             </p>
 
             <div className="hero-ctas">
               <a href="#waitlist" className="btn btn-primary btn-lg">
-                ウェイティングリストに登録
+                先行登録する
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8 L 13 8 M 9 4 L 13 8 L 9 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </a>
               <a href="#features" className="btn btn-outline btn-lg">サービス概要を見る</a>
@@ -71,7 +71,7 @@ function Hero() {
               </div>
               <div className="hero-meta-item">
                 <Icon name="check" size={22} />
-                リリース時に優先案内
+                サービス開始時に優先案内
               </div>
               <div className="hero-meta-item">
                 <Icon name="check" size={22} />
@@ -234,7 +234,7 @@ function WaitlistSection() {
           timing,
           comment: comment.slice(0, COMMENT_MAX),
           ...utmData,                                   // UTMパラメーター（広告流入の識別）
-          _subject: `[WorldClass] ウェイティングリスト新規登録: ${email.trim()}`,
+          _subject: `[WorldClass] 先行登録: ${email.trim()}`,
         }),
       });
       if (res.ok) {
@@ -274,14 +274,14 @@ function WaitlistSection() {
             <h2 className="display-lg mt-4">あなたの登録が、<br/>WorldClass を立ち上げます。</h2>
             <p className="lead mt-6">
               これは「申し込み」ではありません。
-              リリース通知を受け取ると同時に、どんな方が、どんなテーマに、いつ頃使いたいかを教えてください。
+              サービス開始のお知らせを受け取ると同時に、どんな方が、どんなテーマに、いつ頃使いたいかを教えてください。
               いただいた回答は、サービス公開の判断と機能の優先順位に直接つながります。
             </p>
 
             <ul>
               <li>
                 <span className="li-mark"><Icon name="bell" size={24} bgColor="#FFE3D2" color="#FF651E" /></span>
-                <span><strong>リリース時にいち早くご案内します。</strong>登録順に優先枠でお声がけします。</span>
+                <span><strong>サービス開始時にいち早くご案内します。</strong>登録順に優先枠でお声がけします。</span>
               </li>
               <li>
                 <span className="li-mark"><Icon name="sparkles" size={24} bgColor="#FFD98C" color="#A36500" /></span>
@@ -289,7 +289,7 @@ function WaitlistSection() {
               </li>
               <li>
                 <span className="li-mark"><Icon name="handshake" size={24} bgColor="#D6E6FF" color="#0043C3" /></span>
-                <span><strong>あなたの登録が、正式リリースの判断材料になります。</strong>需要が見えるほど、企画は前に進みます。</span>
+                <span><strong>あなたの登録が、サービス開始の判断材料になります。</strong>需要が見えるほど、企画は前に進みます。</span>
               </li>
             </ul>
 
@@ -317,7 +317,7 @@ function WaitlistSection() {
                 </div>
                 <h3>登録ありがとうございます</h3>
                 <p style={{ maxWidth: 380, margin: "0 auto" }}>
-                  リリース時にいち早くお知らせします。<br/>
+                  サービス開始時にいち早くお知らせします。<br/>
                   ご登録いただいたテーマの傾向は、機能の優先順位づけに必ず使わせていただきます。
                 </p>
                 <div style={{ marginTop: 32, padding: 20, background: "var(--cream)", borderRadius: 20, textAlign: "left", fontSize: 14, lineHeight: 1.7 }}>
@@ -444,7 +444,7 @@ function WaitlistSection() {
                 ) : (
                   <>
                     <Icon name="bell" size={20} bgColor="rgba(255,255,255,0.2)" color="#fff" />
-                    リリース時に通知を受け取る
+                    サービス開始時に通知を受け取る
                   </>
                 )}
               </button>

@@ -67,7 +67,7 @@ function ExperienceSection() {
     {
       t: "0:03",
       title: "画面の向こうに、現地の友だち。",
-      body: "ケニアの教室から「ジャンボ！」。ファシリテーターが日英で橋渡し、最初の「こんにちは」がちゃんと伝わります。",
+      body: "ケニアの教室から「ジャンボ！」。進行役が日英で橋渡し、最初の「こんにちは」がちゃんと伝わります。",
       shape: <StarBurst size={130} color="#D6E6FF" petals={12} />,
       accent: <Asterisk8 size={28} color="#0043C3" style={{ position: "absolute", top: 18, right: 18 }} />,
       tag: "挨拶",
@@ -118,7 +118,7 @@ function ExperienceSection() {
         <div className="sect-head">
           <span className="eyebrow"><span className="eyebrow-dot"></span>体験イメージ · What happens</span>
           <h2 className="display-lg mt-4">45分、リビングで<br/>起きること。</h2>
-          <p>「どんなことをするの？」「何が起きるの？」に、できるだけ具体的にお答えします。これは創業チームが設計しているテストセッションの一例です。</p>
+          <p>「どんなことをするの？」「何が起きるの？」に、できるだけ具体的にお答えします。これは創業チームが設計しているテスト交流の一例です。</p>
         </div>
 
         <div className="exp-track">
@@ -222,9 +222,9 @@ function ProblemSection() {
 function FeaturesSection() {
   const features = [
     { icon: "globe", title: "海外とオンラインで交流", body: "発展途上国の学校や現地の日本人と直接つながり、リアルな現地の暮らしや教育、日本との違いについて学べます。" },
-    { icon: "book", title: "テーマ付きセッション", body: "「学校生活」「水」「食」など、考えやすいテーマを用意。準備しなくても参加できます。" },
+    { icon: "book", title: "テーマ付き交流", body: "「学校生活」「水」「食」など、考えやすいテーマを用意。準備しなくても参加できます。" },
     { icon: "home", title: "地域施設でも導入しやすい", body: "回線とディスプレイがあれば実施可能。図書館や公民館の通常運営に組み込めます。" },
-    { icon: "handshake", title: "参加が、そのまま支援に", body: "セッション料金の一部を物資として現地施設へ届けます。学びと支援が同時に起きます。" },
+    { icon: "handshake", title: "参加が、そのまま支援に", body: "参加料金の一部を物資として現地施設へ届けます。学びと支援が同時に起きます。" },
   ];
   return (
     <section className="section" id="features" style={{ background: "var(--blue-pale)" }}>
@@ -234,7 +234,7 @@ function FeaturesSection() {
       <div className="container relative">
         <div className="sect-head">
           <span className="eyebrow"><span className="eyebrow-dot"></span>WorldClass でできること</span>
-          <h2 className="display-lg mt-4">1セッションで、3つの学び。</h2>
+          <h2 className="display-lg mt-4">1交流で、3つの学び。</h2>
           <p>英語・国際理解・SDGs を、別々の科目として教えるのではなく、ひとつのリアルな対話のなかで体験してもらう設計です。</p>
         </div>
         <div className="feat-grid">
@@ -258,8 +258,8 @@ function StepsSection() {
   const [tab, setTab] = React.useState("now");
   const flows = {
     now: [
-      { t: "ウェイティングリストに登録", b: "メールアドレスと利用者区分を選んで送信。30秒で完了します。" },
-      { t: "リリース通知を受け取る", b: "サービス公開時、いち早くご案内します。優先案内ありです。" },
+      { t: "先行登録する", b: "メールアドレスと利用者区分を選んで送信。30秒で完了します。" },
+      { t: "サービス開始のお知らせを受け取る", b: "サービス公開時、いち早くご案内します。優先案内ありです。" },
       { t: "興味のあるテーマを選ぶ", b: "文化交流、英語、国際理解。気になるところから。" },
       { t: "海外とオンライン交流", b: "スタッフのサポートつき。準備物は最小限です。" },
     ],
@@ -267,7 +267,7 @@ function StepsSection() {
       { t: "施設・人物を選ぶ", b: "カタログから話を聞きたい施設や人物を選択。国・地域やテーマで絞り込めます。" },
       { t: "テーマを選ぶ", b: "用意されたカリキュラムから選ぶか、独自テーマを相談できます。" },
       { t: "日時を決める", b: "空きカレンダーから希望枠を選択。" },
-      { t: "セッションを実施", b: "オンラインで現地とつながり、リアルタイムで交流。" },
+      { t: "交流を実施", b: "オンラインで現地とつながり、リアルタイムで交流。" },
       { t: "支援レポートを受け取る", b: "あなたの参加が何に変わったかを、写真と数字で確認できます。" },
     ],
   };
@@ -283,7 +283,7 @@ function StepsSection() {
 
         <div className="steps-tabs">
           <button className={`steps-tab ${tab === "now" ? "active" : ""}`} onClick={() => setTab("now")}>いま参加する流れ</button>
-          <button className={`steps-tab ${tab === "future" ? "active" : ""}`} onClick={() => setTab("future")}>リリース後の流れ</button>
+          <button className={`steps-tab ${tab === "future" ? "active" : ""}`} onClick={() => setTab("future")}>サービス開始後の流れ</button>
         </div>
 
         <div className="steps-grid" style={{ "--cols": cur.length }}>
@@ -318,7 +318,7 @@ function UIShowcaseSection() {
         <div className="sect-head center" style={{ color: "#fff" }}>
           <span className="eyebrow" style={{ background: "rgba(255,255,255,0.08)", color: "#FFD98C" }}><span className="eyebrow-dot"></span>プロダクトを覗いてみる</span>
           <h2 className="display-lg mt-4" style={{ color: "#fff" }}>「ちゃんとしてそう」と<br/>感じてもらう、UIから。</h2>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>企画段階だからこそ、見た目と使い心地は手を抜きません。これは現在検討中のプロダクト画面のプレビューです。リリース時の最終仕様とは異なる場合があります。</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>企画段階だからこそ、見た目と使い心地は手を抜きません。これは現在検討中のプロダクト画面のプレビューです。サービス開始時の最終仕様とは異なる場合があります。</p>
         </div>
 
         <div className="mt-12" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 24 }}>
@@ -465,8 +465,8 @@ function PricingSection() {
     { dur: "60分", base: "10,000", opt: "+3,000", total: "13,000" },
   ];
   const indivRows = [
-    { dur: "45分", base: "2,500", note: "ファシリテーター込み" },
-    { dur: "60分", base: "3,000", note: "ファシリテーター込み" },
+    { dur: "45分", base: "2,500", note: "進行役込み" },
+    { dur: "60分", base: "3,000", note: "進行役込み" },
   ];
 
   return (
@@ -478,13 +478,13 @@ function PricingSection() {
         <div className="sect-head">
           <span className="eyebrow eyebrow-yellow"><span className="eyebrow-dot"></span>料金と還元のしくみ · 検討中</span>
           <h2 className="display-lg mt-4">いただいた料金の半分は、<br/>現地施設の物資支援になります。</h2>
-          <p>料金プランは現在検討中です。ここでは現時点の「考えていること」をそのままお見せします。確定情報はウェイティングリスト登録者から先行してご案内します。</p>
+          <p>料金プランは現在検討中です。ここでは現時点の「考えていること」をそのままお見せします。確定情報は先行登録者からご案内します。</p>
         </div>
 
         {/* Plan toggle */}
         <div className="steps-tabs">
-          <button className={`steps-tab ${plan === "indiv" ? "active" : ""}`} onClick={() => setPlan("indiv")}>オープンセッション</button>
-          <button className={`steps-tab ${plan === "corp" ? "active" : ""}`} onClick={() => setPlan("corp")}>プライベートセッション</button>
+          <button className={`steps-tab ${plan === "indiv" ? "active" : ""}`} onClick={() => setPlan("indiv")}>一般参加プラン</button>
+          <button className={`steps-tab ${plan === "corp" ? "active" : ""}`} onClick={() => setPlan("corp")}>プライベート交流</button>
         </div>
 
         {plan === "corp" ? (
@@ -493,16 +493,16 @@ function PricingSection() {
               <div className="price-table-head">
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-soft)", letterSpacing: ".1em", textTransform: "uppercase" }}>For large groups</div>
-                  <div style={{ fontWeight: 800, fontSize: 22, marginTop: 4 }}>プライベートセッション</div>
+                  <div style={{ fontWeight: 800, fontSize: 22, marginTop: 4 }}>プライベート交流</div>
                 </div>
-                <span className="price-pill">セッション単位</span>
+                <span className="price-pill">交流単位</span>
               </div>
               <table className="price-table">
                 <thead>
                   <tr>
                     <th>時間</th>
                     <th>基本料金</th>
-                    <th>ファシリテーター</th>
+                    <th>進行役</th>
                     <th className="hl">合計</th>
                   </tr>
                 </thead>
@@ -518,28 +518,28 @@ function PricingSection() {
                 </tbody>
               </table>
               <div className="price-note">
-                ※1セッションあたり ・ファシリテーターは日英通訳と司会進行を担当(任意オプション)
+                ※1回あたり ・進行役は日英通訳と司会進行を担当(任意オプション)
               </div>
             </div>
 
             <div className="price-breakdown">
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", opacity: 0.7 }}>プライベートセッションについて</div>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", opacity: 0.7 }}>プライベート交流について</div>
               <h3 style={{ fontSize: 22, marginTop: 8 }}>地域施設や教育現場でも、もっと気軽に世界とつながれるように。</h3>
               <p className="muted" style={{ marginTop: 10, fontSize: 14, lineHeight: 1.75 }}>
-                WorldClassでは、塾・サークル・図書館・公民館などの団体向け国際交流セッションを準備しています。「海外交流に興味はあるけれど、企画や運営が難しい」そんな現場でも導入しやすい形を目指しています。
+                WorldClassでは、塾・サークル・図書館・公民館などの団体向け国際交流プログラムを準備しています。「海外交流に興味はあるけれど、企画や運営が難しい」そんな現場でも導入しやすい形を目指しています。
               </p>
               <ul style={{ listStyle: "none", padding: 0, margin: "20px 0 0", display: "grid", gap: 10 }}>
                 <li style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14 }}>
                   <Icon name="check" size={20} />
-                  <span>学年・目的・テーマに合わせてセッション内容をカスタマイズ可能</span>
+                  <span>学年・目的・テーマに合わせて交流内容をカスタマイズ可能</span>
                 </li>
                 <li style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14 }}>
                   <Icon name="check" size={20} />
-                  <span>参加年齢に応じた柔軟なセッション設計に対応予定</span>
+                  <span>参加年齢に応じた柔軟なプログラム設計に対応予定</span>
                 </li>
                 <li style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14 }}>
                   <Icon name="check" size={20} />
-                  <span>オープンセッション同様、物資支援プールへの還元を予定</span>
+                  <span>一般参加プラン同様、物資支援プールへの還元を予定</span>
                 </li>
               </ul>
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", opacity: 0.7, marginTop: 24  }}>例 ¥10,000 (60分・基本) の内訳</div>
@@ -573,7 +573,7 @@ function PricingSection() {
               <div className="break-fac">
                 <Icon name="user" size={28} bgColor="#FFE3D2" color="#FF651E" />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: 14 }}>ファシリテーターオプション料金</strong>
+                  <strong style={{ fontSize: 14 }}>進行役オプション料金</strong>
                   <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 2, lineHeight: 1.6 }}>追加料金は全額(100%)スタッフ稼働コストに使用。物資支援プールには含めません。</p>
                 </div>
               </div>
@@ -585,7 +585,7 @@ function PricingSection() {
               <div className="price-table-head">
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-soft)", letterSpacing: ".1em", textTransform: "uppercase" }}>For everyone</div>
-                  <div style={{ fontWeight: 800, fontSize: 22, marginTop: 4 }}>オープンセッション(相乗り)</div>
+                  <div style={{ fontWeight: 800, fontSize: 22, marginTop: 4 }}>一般参加プラン(相乗り)</div>
                 </div>
                 <span className="price-pill orange">1グループあたり</span>
               </div>
@@ -594,7 +594,7 @@ function PricingSection() {
                   <tr>
                     <th>時間</th>
                     <th>料金(仮)</th>
-                    <th className="hl">ファシリテーター</th>
+                    <th className="hl">進行役</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -608,20 +608,20 @@ function PricingSection() {
                 </tbody>
               </table>
               <div className="price-note">
-                ※3グループ以上で開催 ・ファシリテーターは常時参加(追加料金なし)
+                ※3グループ以上で開催 ・進行役は常時参加(追加料金なし)
               </div>
             </div>
 
             <div className="price-breakdown" style={{ background: "var(--cream)" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", opacity: 0.7 }}>オープンセッションについて</div>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", opacity: 0.7 }}>一般参加プランについて</div>
               <h3 style={{ fontSize: 22, marginTop: 8 }}>1人から参加できる、世界の窓。</h3>
               <p className="muted" style={{ marginTop: 10, fontSize: 14, lineHeight: 1.75 }}>
-                保護者やお子さん個人でも、他のグループと相乗りで気軽に参加できる枠です。最少3グループから成立し、ファシリテーターが常時付くので「ひとりだと不安」という心配はありません。
+                保護者やお子さん個人でも、他のグループと相乗りで気軽に参加できる枠です。最少3グループから成立し、進行役が常時付くので「ひとりだと不安」という心配はありません。
               </p>
               <ul style={{ listStyle: "none", padding: 0, margin: "20px 0 0", display: "grid", gap: 10 }}>
                 <li style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14 }}>
                   <Icon name="check" size={20} />
-                  <span>3〜8グループで成立する小規模セッション</span>
+                  <span>3〜8グループで成立する小規模交流</span>
                 </li>
                 <li style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14 }}>
                   <Icon name="check" size={20} />
@@ -667,7 +667,7 @@ function PricingSection() {
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
             <Icon name="bell" size={36} bgColor="#FFE3D2" color="#FF651E" />
             <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-              <strong>料金は確定次第、ウェイティングリスト登録者から先行案内します。</strong><br/>
+              <strong>料金は確定次第、先行登録者からご案内します。</strong><br/>
               <span className="muted">原価計算後に微調整があります。物資支援への還元設計は維持します。</span>
             </div>
           </div>
@@ -682,10 +682,10 @@ function PricingSection() {
 function RoadmapSection() {
   const roads = [
     { status: "now", label: "NOW", t: "企画 / 体験設計", b: "コア体験の設計と、パートナー校とのテーマすり合わせを進行中です。" },
-    { status: "now", label: "NOW", t: "ウェイティングリスト受付", b: "リリース判断のために、関心度と利用シーンを集めています。" },
-    { status: "next", label: "NEXT", t: "10カ国以上のパートナーと始動", b: "現地の教育機関/日本人と協働で初期セッションを設計します。" },
-    { status: "next", label: "NEXT", t: "ベータ運用", b: "先行登録ユーザー向けに、小規模のセッションを試験運用予定。" },
-    { status: "future", label: "LATER", t: "正式リリース / 拡大", b: "ベータの結果を踏まえて正式リリース。パートナー国・参加施設を順次拡大します。" },
+    { status: "now", label: "NOW", t: "先行登録受付", b: "サービス開始の判断のために、関心度と利用シーンを集めています。" },
+    { status: "next", label: "NEXT", t: "10カ国以上のパートナーと始動", b: "現地の教育機関/日本人と協働で初回の交流を設計します。" },
+    { status: "next", label: "NEXT", t: "ベータ運用", b: "先行登録ユーザー向けに、小規模の交流を試験運用予定。" },
+    { status: "future", label: "LATER", t: "サービス開始 / 拡大", b: "ベータの結果を踏まえてサービス開始。パートナー国・参加施設を順次拡大します。" },
   ];
   return (
     <section className="section" id="roadmap" style={{ background: "var(--blue-pale)" }}>
@@ -719,7 +719,7 @@ function FAQSection() {
   const faqs = [
     {
       q: "もうサービスは始まっていますか？",
-      a: "いいえ、WorldClass は現在企画段階のサービスです。このページの目的は、どれくらいニーズがあるかを測ることと、リリース時に通知をお届けすることです。実績数や導入校数を出していないのもそのためです。",
+      a: "いいえ、WorldClass は現在企画段階のサービスです。このページの目的は、どれくらいニーズがあるかを測ることと、サービス開始時に通知をお届けすることです。実績数や導入校数を出していないのもそのためです。",
     },
     {
       q: "どんな人が対象ですか？",
@@ -731,15 +731,15 @@ function FAQSection() {
     },
     {
       q: "家からでも参加できますか？",
-      a: "はい、家庭学習の延長としてご参加いただけます。短時間のセッションから始められるよう設計しており、お子さんと一緒にリビングから参加できる気軽さを大切にしています。",
+      a: "はい、家庭学習の延長としてご参加いただけます。短時間の交流から始められるよう設計しており、お子さんと一緒にリビングから参加できる気軽さを大切にしています。",
     },
     {
-      q: "ウェイティングリストに登録すると何が起こりますか？",
-      a: "リリース通知や特典クーポンのメールをお届けします。それに加えて、興味テーマや利用予定時期のご回答は、機能の優先順位を決めるための材料として使わせていただきます。あなたの登録が、サービスの方向性に直接影響します。",
+      q: "先行登録すると何が起こりますか？",
+      a: "サービス開始のお知らせや特典クーポンのメールをお届けします。それに加えて、興味テーマや利用予定時期のご回答は、機能の優先順位を決めるための材料として使わせていただきます。あなたの登録が、サービスの方向性に直接影響します。",
     },
     {
       q: "料金はいくらくらいになりますか？",
-      a: "料金プランは現在検討中です。確定しているのは「料金の一部を必ず現地校の物資支援に回す」という設計です。詳細はウェイティングリスト登録者の方へ、確定次第ご案内します。",
+      a: "料金プランは現在検討中です。確定しているのは「料金の一部を必ず現地校の物資支援に回す」という設計です。詳細は先行登録者の方へ、確定次第ご案内します。",
     },
   ];
   return (
@@ -784,11 +784,11 @@ function FinalCTASection() {
           <div style={{ position: "relative", zIndex: 2 }}>
             <span className="eyebrow" style={{ background: "rgba(255,255,255,0.1)", color: "#FFD98C" }}><span className="eyebrow-dot"></span>あなたの関心が、最初の一歩</span>
             <h2 className="display-xl mt-6" style={{ color: "#fff" }}>次の学びを、<br/>世界とつながる時間に。</h2>
-            <p>まずはウェイティングリストで、リリース通知を受け取ってください。<br/>あなたの登録が、WorldClass を本当に立ち上げるための判断材料になります。</p>
+            <p>まずは先行登録で、サービス開始のお知らせを受け取ってください。<br/>あなたの登録が、WorldClass を本当に立ち上げるための判断材料になります。</p>
           </div>
 
           <div className="final-cta-ctas">
-            <a href="#waitlist" className="btn btn-orange btn-lg">ウェイティングリストに登録</a>
+            <a href="#waitlist" className="btn btn-orange btn-lg">先行登録する</a>
             <a href="#features" className="btn btn-lg" style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.3)" }}>サービス概要をもう一度</a>
           </div>
         </div>
@@ -810,7 +810,7 @@ function Footer() {
             </div>
             <p className="muted" style={{ fontSize: 14, lineHeight: 1.7, maxWidth: 360 }}>
               日本国内のご家庭・学生団体・塾・地方施設と、発展途上国の学校をつなぐオンライン国際交流プラットフォーム。<br/>
-              <span style={{ display: "inline-block", marginTop: 8, padding: "3px 10px", background: "var(--cream)", color: "#A36500", fontSize: 11, borderRadius: 999, fontWeight: 700 }}>企画段階 · プレリリース</span>
+              <span style={{ display: "inline-block", marginTop: 8, padding: "3px 10px", background: "var(--cream)", color: "#A36500", fontSize: 11, borderRadius: 999, fontWeight: 700 }}>企画段階 · プレサービス開始</span>
             </p>
           </div>
           <div>
@@ -832,7 +832,7 @@ function Footer() {
           <div>
             <div className="footer-title">CONTACT</div>
             <div className="footer-links">
-              <a href="#waitlist">ウェイティングリスト</a>
+              <a href="#waitlist">先行登録</a>
             </div>
           </div>
         </div>
