@@ -225,14 +225,42 @@ function Star5(props) {
   return sShape(props, [<path key="p" d={d} strokeLinejoin="round" stroke={props.color || "#FFD98C"} strokeWidth="10" />]);
 }
 
-// --- Wordmark/Logo ---
-function Logo({ size = 32, color = "#002D7A" }) {
+// --- Wordmark/Logo — 地球儀 + 開いた本 ---
+function Logo({ size = 32, color = "#FF651E" }) {
+  const s = 2.2; // stroke-width
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-      <circle cx="20" cy="20" r="18" fill={color} />
-      <path d="M 8 20 Q 20 8 32 20 Q 20 32 8 20 Z" fill="#FFA801" />
-      <circle cx="20" cy="20" r="4.5" fill="#fff" />
-      <circle cx="20" cy="20" r="1.8" fill={color} />
+    <svg width={size} height={size} viewBox="0 0 80 80" fill="none" aria-hidden="true"
+         stroke={color} strokeLinecap="round" strokeLinejoin="round">
+
+      {/* 光線（5本） */}
+      <line x1="40" y1="4"  x2="40" y2="10" strokeWidth={s+0.3}/>
+      <line x1="24" y1="8"  x2="27" y2="13" strokeWidth={s}/>
+      <line x1="56" y1="8"  x2="53" y2="13" strokeWidth={s}/>
+      <line x1="13" y1="17" x2="17" y2="21" strokeWidth={s}/>
+      <line x1="67" y1="17" x2="63" y2="21" strokeWidth={s}/>
+
+      {/* 地球儀: 外周 */}
+      <circle cx="40" cy="36" r="20" strokeWidth={s}/>
+
+      {/* 地球儀: 経線（Cubic Bezier — 512座標を80座標にスケール変換） */}
+      <path d="M40 16 C32.94 22.48 29.41 28.94 29.41 36 C29.41 43.06 32.94 49.52 40 56" strokeWidth={s-0.4}/>
+      <path d="M40 16 C47.06 22.48 50.59 28.94 50.59 36 C50.59 43.06 47.06 49.52 40 56" strokeWidth={s-0.4}/>
+      <line x1="40" y1="16" x2="40" y2="56" strokeWidth={s-0.4}/>
+
+      {/* 地球儀: 緯線（Cubic Bezier） */}
+      <path d="M21.76 28.94 C30.59 32.47 49.41 32.47 58.24 28.94" strokeWidth={s-0.4}/>
+      <path d="M20 43.06 C30 46.59 50 46.59 60 43.06" strokeWidth={s-0.4}/>
+
+      {/* 開いた本: 左ページ */}
+      <path d="M40 54 Q28 50 10 56 L10 72 Q28 66 40 70 Z" strokeWidth={s}/>
+      {/* 開いた本: 右ページ */}
+      <path d="M40 54 Q52 50 70 56 L70 72 Q52 66 40 70 Z" strokeWidth={s}/>
+      {/* 本の背表紙（中央縦線） */}
+      <line x1="40" y1="54" x2="40" y2="70" strokeWidth={s}/>
+      {/* ページのカーブ線（左） */}
+      <path d="M17 59 Q28 56 38 58" strokeWidth={s-0.6}/>
+      {/* ページのカーブ線（右） */}
+      <path d="M63 59 Q52 56 42 58" strokeWidth={s-0.6}/>
     </svg>
   );
 }
