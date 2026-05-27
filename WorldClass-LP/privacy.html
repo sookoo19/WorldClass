@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>プライバシーポリシー — WorldClass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  /* ============ Privacy page ============ */
+  .pp-wrap {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+  }
+  .pp-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    opacity: 0.75;
+    margin-bottom: 32px;
+  }
+  .pp-back:hover { opacity: 1; }
+  .pp-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--orange);
+    background: #FFE3D2;
+    padding: 8px 14px;
+    border-radius: 999px;
+  }
+  .pp-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pp-title {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 900;
+    font-size: clamp(34px, 4.4vw, 52px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin: 18px 0 14px;
+  }
+  .pp-meta {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .pp-intro {
+    margin-top: 28px;
+    padding: 24px 28px;
+    background: var(--blue-pale);
+    border-radius: 20px;
+    font-size: 15px;
+    line-height: 1.85;
+    color: var(--ink);
+  }
+  .pp-intro strong { color: var(--ink); }
+
+  .pp-body {
+    margin-top: 48px;
+    font-size: 15.5px;
+    line-height: 1.85;
+    color: var(--ink);
+  }
+  .pp-body section { margin-bottom: 44px; }
+  .pp-body h2 {
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin: 0 0 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  .pp-body h2 .pp-num {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--orange);
+    letter-spacing: 0.1em;
+    background: #FFE3D2;
+    padding: 4px 10px;
+    border-radius: 999px;
+    align-self: center;
+    line-height: 1;
+  }
+  .pp-body p { margin: 0 0 12px; }
+  .pp-body ul {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .pp-body ul li {
+    position: relative;
+    padding: 6px 0 6px 22px;
+    color: var(--ink);
+  }
+  .pp-body ul li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 16px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+  }
+
+  .pp-table-wrap {
+    margin-top: 14px;
+    border: 1.5px solid rgba(0,45,122,0.12);
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .pp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .pp-table th, .pp-table td {
+    text-align: left;
+    padding: 14px 18px;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(0,45,122,0.08);
+  }
+  .pp-table tr:last-child th, .pp-table tr:last-child td { border-bottom: none; }
+  .pp-table thead th {
+    background: var(--blue-pale);
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .pp-table tbody th {
+    font-weight: 700;
+    color: var(--ink);
+    background: #FBF8F2;
+    width: 30%;
+  }
+  .pp-table tbody td { color: var(--ink); }
+  .pp-table a {
+    color: var(--ink-2);
+    text-decoration: underline;
+    word-break: break-all;
+  }
+  .pp-table a:hover { color: var(--orange); }
+
+  .pp-contact-card {
+    margin-top: 14px;
+    padding: 22px 26px;
+    background: var(--cream);
+    border-radius: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 24px;
+  }
+  .pp-contact-card .pp-contact-label {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #A36500;
+  }
+  .pp-contact-card .pp-contact-value {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    word-break: break-all;
+  }
+  .pp-contact-card .pp-contact-value a { color: inherit; text-decoration: underline; }
+
+  .pp-footer {
+    margin-top: 64px;
+    padding-top: 28px;
+    border-top: 1px dashed rgba(0,45,122,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .pp-footer a {
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: underline;
+  }
+
+  @media (max-width: 640px) {
+    .pp-wrap { padding: 40px 20px 72px; }
+    .pp-intro { padding: 18px 20px; font-size: 14px; }
+    .pp-table th, .pp-table td { padding: 12px 14px; font-size: 13px; }
+    .pp-table tbody th { width: auto; display: block; background: var(--blue-pale); border-bottom: none; }
+    .pp-table tbody td { display: block; padding-top: 4px; }
+  }
+</style>
+</head>
+<body>
+  <div class="pp-wrap">
+    <a href="index.html" class="pp-back">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2 L 4 7 L 9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      WorldClass トップへ戻る
+    </a>
+
+    <span class="pp-eyebrow"><span class="pp-eyebrow-dot"></span>Privacy Policy</span>
+    <h1 class="pp-title">プライバシーポリシー<br/><span style="font-size: 0.55em; color: var(--ink-soft); font-weight: 700;">（ウェイティングリスト）</span></h1>
+    <div class="pp-meta">最終更新日：2026年5月26日</div>
+
+    <div class="pp-intro">
+      <strong>WorldClass</strong>（以下「当サービス」）は、ウェイティングリスト登録において取得する個人情報を、以下の方針に基づき適切に管理します。
+    </div>
+
+    <div class="pp-body">
+      <section>
+        <h2><span class="pp-num">01</span>取得する個人情報</h2>
+        <p>メールアドレス</p>
+      </section>
+
+      <section>
+        <h2><span class="pp-num">02</span>取得目的</h2>
+        <ul>
+          <li>サービス開始時および事前案内・特典クーポンのご連絡</li>
+          <li>ウェイティングリストの管理</li>
+        </ul>
+        <p style="margin-top: 14px;">上記以外の目的には使用しません。</p>
+      </section>
+
+      <section>
+        <h2><span class="pp-num">03</span>第三者提供</h2>
+        <p>取得した個人情報は、以下の場合を除き第三者に提供しません。</p>
+        <ul>
+          <li>法令に基づく場合</li>
+          <li>人の生命・身体・財産の保護のために必要な場合</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2><span class="pp-num">04</span>業務委託先</h2>
+        <p>フォーム送信・メール配信の処理を以下のサービスに委託しています。</p>
+        <div class="pp-table-wrap">
+          <table class="pp-table">
+            <thead>
+              <tr>
+                <th>サービス</th>
+                <th>用途</th>
+                <th>プライバシーポリシー</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Formspree（Formspree, Inc.）</td>
+                <td>フォーム受付・メール転送</td>
+                <td><a href="https://formspree.io/legal/privacy-policy" target="_blank" rel="noopener">formspree.io/legal/privacy-policy</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top: 14px;">委託先には適切な情報管理を求めています。</p>
+      </section>
+
+      <section>
+        <h2><span class="pp-num">05</span>保管期間</h2>
+        <p>サービス正式リリースから6ヶ月後、または本人からの削除依頼があるまで保管します。</p>
+      </section>
+
+      <section>
+        <h2><span class="pp-num">06</span>情報の開示・訂正・削除</h2>
+        <p>登録情報の確認・訂正・削除をご希望の場合は、下記までご連絡ください。対応期間は受付後7営業日以内とします。</p>
+      </section>
+
+      <section>
+        <h2><span class="pp-num">07</span>お問い合わせ</h2>
+        <div class="pp-contact-card">
+          <span class="pp-contact-label">メール</span>
+          <span class="pp-contact-value"><a href="mailto:kouhei20001011+worldclass@gmail.com">kouhei20001011+worldclass@gmail.com</a></span>
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="pp-num">08</span>プライバシーポリシーの変更</h2>
+        <p>内容を変更する場合は、本ページ上部の「最終更新日」を更新してお知らせします。変更後も継続して登録されている場合は、変更後のポリシーに同意したものとみなします。</p>
+      </section>
+    </div>
+
+    <div class="pp-footer">
+      <span>© 2026 WorldClass</span>
+      <a href="index.html">← トップページに戻る</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WorldClass — 世界とつながり、学びで未来をつくる</title>
+
+<!-- OGP / Social Sharing（Instagram・Facebook広告のプレビューに必須）
+     og:image は 1200×630px の画像URLに差し替えてください -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="WorldClass — 世界とつながり、学びで未来をつくる" />
+<meta property="og:description" content="ご家庭とアジア・アフリカの子どもたちをつなぐ国際交流プラットフォーム。45分のオンラインセッションで本物の異文化体験を。先着300名限定で特典クーポンをプレゼント中。" />
+<meta property="og:image" content="https://worldclassjp.netlify.app/uploads/worldclass_ogp.png" />
+<meta property="og:url" content="https://worldclassjp.netlify.app/" />
+<meta property="og:locale" content="ja_JP" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="WorldClass — 世界とつながり、学びで未来をつくる" />
+<meta name="twitter:description" content="先着300名限定 · 特典クーポンプレゼント中。家庭にいながら世界とつながれる体験を。" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+
+<!-- ============================================================
+     Meta Pixel
+     手順: Meta ビジネスマネージャー → イベントマネージャー → Pixelを作成
+     → 発行された15桁の数字を下の YOUR_PIXEL_ID_HERE と差し替える（2箇所）
+     ============================================================ -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window,document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', 'YOUR_PIXEL_ID_HERE');
+fbq('track', 'PageView');
+</script>
+<noscript>
+  <img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=YOUR_PIXEL_ID_HERE&ev=PageView&noscript=1"/>
+</noscript>
+<!-- End Meta Pixel -->
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="shapes.jsx"></script>
+<script type="text/babel" src="mocks.jsx"></script>
+<script type="text/babel" src="sections.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>
