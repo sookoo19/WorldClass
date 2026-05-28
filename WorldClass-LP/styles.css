@@ -147,10 +147,15 @@ img { display: block; max-width: 100%; }
 
 .hero-stage {
   position: relative;
-  aspect-ratio: 1 / 1;
-  max-width: 580px;
+  max-width: 540px;
   margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+/* モバイル専用ヒーロー画像 — デスクトップでは非表示 */
+.hero-img-mobile { display: none; }
 
 /* ============ Cards ============ */
 .card {
@@ -594,6 +599,12 @@ img { display: block; max-width: 100%; }
 .exp-change-arrow { display: flex; justify-content: center; opacity: 0.85; }
 
 /* responsive tweaks */
+@media (max-width: 980px) {
+  /* モバイル: h1→画像→テキストの順にするため
+     右カラムの画像を非表示、左カラム内の画像を表示 */
+  .hero-stage { display: none; }
+  .hero-img-mobile { display: block; margin: 24px 0 8px; }
+}
 @media (max-width: 700px) {
   .hero-stage { max-width: 100%; }
   .display-xl { font-size: 44px; }

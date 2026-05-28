@@ -9,11 +9,10 @@ function Nav() {
           <span>WorldClass</span>
         </a>
         <div className="nav-links">
-          <a href="#problem">課題</a>
-          <a href="#story">ストーリー</a>
-          <a href="#features">できること</a>
           <a href="#experience">体験イメージ</a>
+          <a href="#features">できること</a>
           <a href="#audience">対象</a>
+          <a href="#pricing">料金</a>
           <a href="#faq">FAQ</a>
         </div>
         <div className="nav-cta">
@@ -39,7 +38,7 @@ function Hero() {
       <div className="container relative">
         <div className="hero-grid">
           <div>
-            <div className="hero-tag">
+            <div className="hero-tag" style={{ marginBottom: 20 }}>
               <span>🎁 先着300名限定 · 特典クーポンプレゼント中</span>
             </div>
 
@@ -48,10 +47,19 @@ function Hero() {
               家庭の日常に。
             </h1>
 
+            {/* モバイルのみ表示: h1直後に画像 */}
+            <div className="hero-img-mobile">
+              <img
+                src="uploads/Hero_image.png"
+                alt="オンラインで世界の子どもたちと交流している様子"
+                style={{ width: "100%", display: "block", borderRadius: 20 }}
+              />
+            </div>
+
             <p className="hero-sub">
-              <strong style={{ color: "var(--ink)", fontWeight: 700 }}>世界を知ることは、子どもの未来の選択肢を広げること。</strong><br/>
-              WorldClassは、ご家庭とアジア・アフリカの子どもたちや現地で活動する日本人をつなぐ国際交流プラットフォームです。<br />
-              45分の交流で、本物の異文化体験を。<br />
+              <strong style={{ color: "var(--ink)", fontWeight: 700 }}>発展途上国の子どもたち・現地で活動する日本人と、45分間ビデオ通話で対話できるサービスです。</strong><br/>
+              ご家庭・塾・図書館から、現地と直接つながれます。<br />
+              準備はほぼゼロ。進行スタッフが場をつくります。<br />
               あなたが払う料金の半分は、現地の教育施設へ届きます。<br />
               学ぶことが、そのまま支援になる。<br />
             </p>
@@ -77,11 +85,19 @@ function Hero() {
                 <Icon name="check" size={22} />
                 料金の半分が現地校へ
               </div>
+              <div className="hero-meta-item">
+                <Icon name="check" size={22} />
+                日本人スタッフが進行をサポート
+              </div>
             </div>
           </div>
 
           <div className="hero-stage">
-            <HeroMock />
+            <img
+              src="uploads/Hero_image.png"
+              alt="オンラインで世界の子どもたちと交流している様子"
+              style={{ width: "100%", display: "block", borderRadius: 24 }}
+            />
           </div>
         </div>
 
@@ -466,17 +482,17 @@ function App() {
     <>
       <Nav />
       <Hero />
+      <ExperienceSection />
       <ProblemSection />
       <StorySection />
       <FeaturesSection />
-      <ExperienceSection />
-      <StepsSection />
-      <WaitlistSection />
       <AudienceSection />
       <ValueSection />
+      <StepsSection />
       <PricingSection />
       <RoadmapSection />
       <FAQSection />
+      <WaitlistSection />
       <FinalCTASection />
       <Footer />
     </>
