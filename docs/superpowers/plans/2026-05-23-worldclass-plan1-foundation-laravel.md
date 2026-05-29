@@ -2,495 +2,152 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Laravel 13 + Inertia.js + React + TypeScript + Filament + カスタムDockerで基盤を構築し、3ロール（日本校・海外校・管理者）の認証・DBマイグレーション・クリーンアーキテクチャ骨格を完成させる。
+**Goal:** Laravel 13 + Inertia.js + React + TypeScript + Filament v4 + カスタムDockerで基盤を構築し、3ロール（member・partner・admin）の認証・DBマイグレーション・クリーンアーキテクチャ骨格を完成させる。
 
-**Architecture:** クリーンアーキテクチャ（Domain / UseCase / Infrastructure / Http）。フロントはInertia.js + React。管理画面はFilament v4。
+**Architecture:** クリーンアーキテクチャ（Domain / UseCase / Infrastructure / Http）。フロントはInertia.js + React + TypeScript。管理画面はFilament v4。
 
-**Tech Stack:** Laravel 13, Inertia.js, React, TypeScript, Filament v4, PostgreSQL 16, Redis 7, Nginx, Docker Compose, Pest（TDD）
+**Tech Stack:** Laravel 13, Inertia.js, React, TypeScript, Filament v4, PostgreSQL 16, Redis 7, Nginx, Docker Compose, Pest（TDD）, Larastan level 5, Pint
 
-**Engineering Principles:** → [`engineering-principles.md`](../specs/2026-05-25-worldclass-engineering-principles.md)
+**DB設計:** → [`../specs/2026-05-29-worldclass-db-design.md`](../specs/2026-05-29-worldclass-db-design.md)（ER図: `2026-05-29-worldclass-db-er.drawio`）
+**Engineering Principles:** → [`../specs/2026-05-25-worldclass-engineering-principles.md`](../specs/2026-05-25-worldclass-engineering-principles.md)
+
+> **⚠️ 重要な仕様変更（2026-05-29）:** 旧プランの `schools` / `RegisterSchool*` 命名は廃止。LP仕様に合わせ **日本側利用者 = `members`（type区分）**、**海外側 = `partners`（provider_type区分）**、**予約 = `sessions`（枠）+ `session_participants`（参加グループ）** に再設計済み。本プランは新設計に準拠する。
 
 ---
 
-## ファイル構成（Phase 1完了時点）
+## 進捗サマリ
+
+| Task | 内容 | 状態 |
+|---|---|---|
+| Task 0 | Docker環境構築 | ✅ 完了 |
+| Task 1 | Laravel 13 + Inertia + React + Pest | ✅ 完了（Breezeは現状 .jsx。新規ページは .tsx で追加・漸進移行） |
+| Task 2 | Filament v4 管理画面 | ✅ 完了（v3はLaravel13非対応のためv4。ext-intl必須でDockerfileに`libicu-dev`+`intl`追加済み） |
+| Task 3 | GitHub Actions CI（test + larastan level5 + pint） | ✅ 完了（CI green確認済み） |
+| Task 4 | DBマイグレーション（新設計・全6テーブル） | ⏭️ **次はここ** |
+| Task 5 | クリーンアーキ骨格（Domain/UseCase/Infrastructure） | ⬜ |
+| Task 6 | TDD UseCaseユニットテスト | ⬜ |
+| Task 7 | ロール保護ミドルウェア | ⬜ |
+| Task 8 | 登録フォーム（Controller→UseCase, .tsx） | ⬜ |
+| Task 9 | Feature Test（登録フロー） | ⬜ |
+| Task 10 | AdminUserSeeder | ⬜ |
+| Task 11 | Filament PartnerResource（審査画面） | ⬜ |
+
+> Task 0〜3 の実装手順は完了済みのため割愛。詳細はgit履歴（`edc1d1c` Filament / `dc477a6`・`544d642` CI）を参照。
+
+---
+
+## ファイル構成（Phase 1完了時点・新設計）
 
 ```
 worldclass/
-├── docker/
-│   ├── php/
-│   │   └── Dockerfile
-│   └── nginx/
-│       └── default.conf
-├── docker-compose.yml
-├── .env.example
-├── .github/
-│   └── workflows/
-│       └── ci.yml
 ├── app/
 │   ├── Domain/
-│   │   ├── Entities/
-│   │   │   ├── School.php           # ドメインエンティティ（Eloquentモデルではない）
-│   │   │   └── Partner.php
 │   │   ├── ValueObjects/
-│   │   │   └── PartnerStatus.php    # enum: pending/approved/suspended/rejected
-│   │   └── Repositories/            # インターフェース
-│   │       ├── SchoolRepositoryInterface.php
+│   │   │   ├── MemberType.php         # enum: family/cram_school/circle/public_facility/other
+│   │   │   ├── ProviderType.php       # enum: overseas_school/local_japanese
+│   │   │   ├── PartnerStatus.php      # enum: pending/approved/suspended/rejected
+│   │   │   └── ThemeType.php          # enum: culture/english/global
+│   │   └── Repositories/              # インターフェース
+│   │       ├── MemberRepositoryInterface.php
 │   │       └── PartnerRepositoryInterface.php
 │   ├── UseCases/
 │   │   └── Auth/
-│   │       ├── RegisterSchoolInput.php
-│   │       ├── RegisterSchoolOutput.php
-│   │       ├── RegisterSchoolUseCase.php
+│   │       ├── RegisterMemberInput.php
+│   │       ├── RegisterMemberOutput.php
+│   │       ├── RegisterMemberUseCase.php
 │   │       ├── RegisterPartnerInput.php
 │   │       ├── RegisterPartnerOutput.php
 │   │       └── RegisterPartnerUseCase.php
 │   ├── Infrastructure/
 │   │   └── Repositories/
-│   │       ├── EloquentSchoolRepository.php
+│   │       ├── EloquentMemberRepository.php
 │   │       └── EloquentPartnerRepository.php
 │   ├── Http/
 │   │   ├── Controllers/
-│   │   │   ├── Auth/
-│   │   │   │   └── RegisteredUserController.php
+│   │   │   ├── Auth/RegisteredUserController.php
 │   │   │   └── DashboardController.php
 │   │   ├── Requests/
-│   │   │   ├── RegisterSchoolRequest.php
+│   │   │   ├── RegisterMemberRequest.php
 │   │   │   └── RegisterPartnerRequest.php
-│   │   └── Middleware/
-│   │       └── EnsureRole.php
-│   ├── Models/                       # Eloquentモデル（インフラ層）
-│   │   ├── User.php
-│   │   ├── School.php
+│   │   └── Middleware/EnsureRole.php
+│   ├── Models/                        # Eloquentモデル（インフラ層）
+│   │   ├── User.php                   # role追加済み（member/partner/admin）
+│   │   ├── Member.php
 │   │   ├── Partner.php
 │   │   ├── Session.php
-│   │   ├── Coupon.php
-│   │   └── SupportRequest.php
-│   ├── Filament/
-│   │   └── Resources/
-│   │       └── PartnerResource.php
-│   └── Providers/
-│       └── AppServiceProvider.php    # DIバインディング
+│   │   ├── SessionParticipant.php
+│   │   ├── SupportRequest.php
+│   │   └── Coupon.php
+│   ├── Filament/Resources/PartnerResource.php
+│   └── Providers/AppServiceProvider.php   # DIバインディング
 ├── database/
 │   ├── migrations/
 │   │   ├── xxxx_add_role_to_users_table.php
-│   │   ├── xxxx_create_schools_table.php
+│   │   ├── xxxx_create_members_table.php
 │   │   ├── xxxx_create_partners_table.php
 │   │   ├── xxxx_create_sessions_table.php
+│   │   ├── xxxx_create_session_participants_table.php
 │   │   ├── xxxx_create_support_requests_table.php
 │   │   └── xxxx_create_coupons_table.php
-│   └── seeders/
-│       └── AdminUserSeeder.php
-├── resources/
-│   └── js/
-│       ├── Pages/
-│       │   ├── Auth/
-│       │   │   ├── Login.tsx
-│       │   │   ├── RegisterSchool.tsx
-│       │   │   └── RegisterPartner.tsx
-│       │   └── Dashboard/
-│       │       ├── School.tsx
-│       │       └── Partner.tsx
-│       └── app.tsx
-├── routes/
-│   ├── web.php
-│   └── auth.php
+│   └── seeders/AdminUserSeeder.php
+├── resources/js/Pages/
+│   ├── Auth/RegisterMember.tsx
+│   ├── Auth/RegisterPartner.tsx
+│   └── Dashboard/{Member,Partner}.tsx
 └── tests/
-    ├── Unit/
-    │   └── UseCases/
-    │       ├── RegisterSchoolUseCaseTest.php
-    │       └── RegisterPartnerUseCaseTest.php
-    └── Feature/
-        ├── Auth/
-        │   ├── RegisterSchoolTest.php
-        │   └── RegisterPartnerTest.php
-        └── DashboardTest.php
+    ├── Unit/UseCases/
+    │   ├── RegisterMemberUseCaseTest.php
+    │   └── RegisterPartnerUseCaseTest.php
+    └── Feature/Auth/
+        ├── RegisterMemberTest.php
+        └── RegisterPartnerTest.php
 ```
+
+> ⚠️ Laravelの予約名衝突に注意: `app/Models/Session.php` は Eloquentモデルだが、`Illuminate\Support\Facades\Session` と名前が衝突する。モデル内・利用側では完全修飾 or エイリアスに注意（マイグレーションのテーブル名は `sessions` だが、Laravelデフォルトの `sessions` セッションテーブルは本プロジェクトでは未使用＝セッションドライバはRedis/databaseのうちRedis想定。衝突回避のため後述）。
 
 ---
 
-## Task 0: Docker環境構築
+## Task 4: DBマイグレーション（新設計・全6テーブル）
 
 **Files:**
-- Create: `docker/php/Dockerfile`
-- Create: `docker/nginx/default.conf`
-- Create: `docker-compose.yml`
+- Create: 7マイグレーション（role追加 + 6テーブル）
+- Create/Modify: `app/Models/` 各モデル
 
-- [ ] **Step 1: ディレクトリ作成**
+> **前提:** Docker起動中であること。未起動なら `DOCKER_BUILDKIT=0 docker compose up -d`。
 
-```bash
-mkdir -p docker/php docker/nginx
+### 4-0: usersのセッションテーブル名衝突を回避
+
+`app/Models/Session.php`（交流セッション）と、Laravelの認証セッション格納テーブル `sessions` が衝突する。本プロジェクトはセッションドライバに `database` を使わない（`.env` の `SESSION_DRIVER` を `redis` にする）ことで衝突を避ける。
+
+- [ ] **Step 1: `.env` と `.env.example` の SESSION_DRIVER を確認/変更**
+
+`.env` と `.env.example` の両方で次を設定：
+```
+SESSION_DRIVER=redis
 ```
 
-- [ ] **Step 2: `docker/php/Dockerfile` を作成**
+- [ ] **Step 2: デフォルトのsessionsマイグレーションが無いことを確認**
 
-```dockerfile
-FROM php:8.3-fpm
+Run: `ls database/migrations/ | grep -i session`
+Expected: 何も表示されない（Laravel 13のデフォルト `0001_01_01_000000_create_users_table.php` 内にsessionsが含まれる場合は、その `sessions` テーブル定義行を削除する。下記Step 3）。
 
-RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpq-dev libzip-dev \
-    && docker-php-ext-install pdo pdo_pgsql zip bcmath \
-    && pecl install redis && docker-php-ext-enable redis
+- [ ] **Step 3: `create_users_table` 内のsessionsテーブル定義を削除（存在する場合）**
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-WORKDIR /var/www/html
-```
-
-- [ ] **Step 3: `docker/nginx/default.conf` を作成**
-
-```nginx
-server {
-    listen 80;
-    root /var/www/html/public;
-    index index.php;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass app:9000;
-        fastcgi_index index.php;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-    }
-}
-```
-
-- [ ] **Step 4: `docker-compose.yml` を作成**
-
-```yaml
-services:
-  app:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-    volumes:
-      - .:/var/www/html
-    environment:
-      - APP_ENV=${APP_ENV:-local}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-  nginx:
-    image: nginx:1.25-alpine
-    ports:
-      - "80:80"
-    volumes:
-      - .:/var/www/html
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - app
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${DB_DATABASE:-worldclass}
-      POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redisdata:/data
-    ports:
-      - "6379:6379"
-
-volumes:
-  pgdata:
-  redisdata:
-```
-
-- [ ] **Step 5: `.env.example` を作成**
-
-```
-APP_NAME=WorldClass
-APP_ENV=local
-APP_KEY=
-APP_DEBUG=true
-APP_URL=http://localhost
-
-DB_CONNECTION=pgsql
-DB_HOST=db
-DB_PORT=5432
-DB_DATABASE=worldclass
-DB_USERNAME=postgres
-DB_PASSWORD=secret
-
-REDIS_HOST=redis
-REDIS_PORT=6379
-
-STRIPE_KEY=
-STRIPE_SECRET=
-STRIPE_WEBHOOK_SECRET=
-
-MAIL_MAILER=log
-MAIL_FROM_ADDRESS=noreply@worldclass.jp
-MAIL_FROM_NAME="${APP_NAME}"
-```
-
-- [ ] **Step 6: `.env` を `.env.example` からコピー**
-
-```bash
-cp .env.example .env
-```
-
-- [ ] **Step 7: コミット**
-
-```bash
-git add docker/ docker-compose.yml .env.example
-git commit -m "chore(docker): add custom Docker Compose with PHP 8.3, Nginx, PostgreSQL, Redis"
-```
-
----
-
-## Task 1: Laravelプロジェクト作成
-
-**Files:**
-- Create: プロジェクトルート一式
-
-- [ ] **Step 1: Laravelプロジェクト作成（コンテナ外 or ローカルComposer）**
-
-```bash
-composer create-project laravel/laravel worldclass
-cd worldclass
-```
-
-> 既存ディレクトリに作る場合: `composer create-project laravel/laravel .`
-
-- [ ] **Step 2: Dockerコンテナ起動**
-
-```bash
-docker compose up -d
-docker compose exec app php artisan key:generate
-```
-
-- [ ] **Step 3: Inertia.js + React インストール**
-
-```bash
-docker compose exec app composer require inertiajs/inertia-laravel
-docker compose exec app npm install @inertiajs/react react react-dom
-docker compose exec app npm install -D @types/react @types/react-dom typescript
-```
-
-- [ ] **Step 4: Laravel Breeze（Inertia + React）インストール**
-
-```bash
-docker compose exec app composer require laravel/breeze --dev
-docker compose exec app php artisan breeze:install react
-docker compose exec app npm install
-docker compose exec app npm run build
-```
-
-- [ ] **Step 5: Pest インストール（TDD用）**
-
-```bash
-docker compose exec app composer require pestphp/pest --dev --with-all-dependencies
-docker compose exec app php artisan pest:install
-```
-
-- [ ] **Step 6: 動作確認**
-
-`http://localhost` にアクセス → Laravelデフォルト画面が表示される
-
-- [ ] **Step 7: コミット**
-
-```bash
-git add .
-git commit -m "feat: initialize Laravel 13 + Inertia.js + React + Pest"
-```
-
----
-
-## Task 2: Filament v4インストール（管理画面）
-
-**Files:**
-- Modify: `app/Models/User.php`
-
-- [ ] **Step 1: Filamentインストール**
-
-```bash
-docker compose exec app composer require filament/filament:"^3.2" -W
-docker compose exec app php artisan filament:install --panels
-```
-
-対話式で以下を入力：
-- Panel ID: `admin`
-- Panel path: `admin`
-
-- [ ] **Step 2: `app/Models/User.php` にFilamentインターフェース追加**
-
-```php
-<?php
-
-namespace App\Models;
-
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-
-class User extends Authenticatable implements FilamentUser
-{
-    use Notifiable;
-
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'role',
-    ];
-
-    protected $hidden = ['password', 'remember_token'];
-
-    protected $casts = [
-        'password' => 'hashed',
-    ];
-
-    public function canAccessPanel(Panel $panel): bool
-    {
-        return $this->role === 'admin';
-    }
-
-    public function school()
-    {
-        return $this->hasOne(School::class);
-    }
-
-    public function partner()
-    {
-        return $this->hasOne(Partner::class);
-    }
-}
-```
-
-- [ ] **Step 3: 動作確認**
-
-`http://localhost/admin` → Filamentログイン画面が表示される
+`database/migrations/0001_01_01_000000_create_users_table.php` を開き、`Schema::create('sessions', ...)` ブロックがあれば削除する。`down()` の `Schema::dropIfExists('sessions');` も削除。
+これにより交流セッション用 `sessions` テーブルと衝突しない。
 
 - [ ] **Step 4: コミット**
 
 ```bash
-git add .
-git commit -m "feat(admin): install Filament v4 admin panel"
+git add .env.example database/migrations/0001_01_01_000000_create_users_table.php
+git commit -m "chore(db): use redis session driver to free 'sessions' table name"
 ```
-
----
-
-## Task 3: GitHub Actions CI設定
-
-**Files:**
-- Create: `.github/workflows/ci.yml`
-
-- [ ] **Step 1: ディレクトリ作成**
-
-```bash
-mkdir -p .github/workflows
-```
-
-- [ ] **Step 2: `.github/workflows/ci.yml` を作成**
-
-```yaml
-name: CI
-
-on:
-  push:
-    branches: [main, staging]
-  pull_request:
-    branches: [main, staging]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: worldclass_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: secret
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: pdo_pgsql, redis, zip, bcmath
-
-      - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Copy .env
-        run: |
-          cp .env.example .env.testing
-          sed -i 's/DB_HOST=db/DB_HOST=127.0.0.1/' .env.testing
-          sed -i 's/DB_DATABASE=worldclass/DB_DATABASE=worldclass_test/' .env.testing
-          sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env.testing
-
-      - name: Generate app key
-        run: php artisan key:generate --env=testing
-
-      - name: Run migrations
-        run: php artisan migrate --env=testing
-
-      - name: Run tests
-        run: php artisan test --env=testing
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-      - run: composer install --no-interaction --prefer-dist
-      - name: Pint (code style)
-        run: ./vendor/bin/pint --test
-```
-
-- [ ] **Step 3: コミット**
-
-```bash
-git add .github/
-git commit -m "chore(ci): add GitHub Actions CI with test and lint jobs"
-```
-
----
-
-## Task 4: DBマイグレーション（全テーブル）
-
-**Files:**
-- Create: 6つのマイグレーション
-- Create: `app/Models/` 各モデル
 
 ### 4-1: usersテーブルにroleカラム追加
 
 - [ ] **Step 1: マイグレーション作成**
 
-```bash
-docker compose exec app php artisan make:migration add_role_to_users_table --table=users
-```
+Run: `docker compose exec app php artisan make:migration add_role_to_users_table --table=users`
 
 - [ ] **Step 2: マイグレーション編集**
 
@@ -498,8 +155,8 @@ docker compose exec app php artisan make:migration add_role_to_users_table --tab
 public function up(): void
 {
     Schema::table('users', function (Blueprint $table) {
-        $table->enum('role', ['school', 'partner', 'admin'])
-              ->default('school')
+        $table->enum('role', ['member', 'partner', 'admin'])
+              ->default('member')
               ->after('email');
     });
 }
@@ -512,30 +169,47 @@ public function down(): void
 }
 ```
 
-### 4-2: schoolsテーブル
+- [ ] **Step 3: `app/Models/User.php` の $fillable に 'role' を追加**
 
-- [ ] **Step 1: マイグレーション・モデル作成**
+既存の `canAccessPanel()`（Filament用）はそのまま。`$fillable` に `'role'` を追加し、リレーションを定義：
+```php
+protected $fillable = ['name', 'email', 'password', 'role'];
 
-```bash
-docker compose exec app php artisan make:model School -m
+public function member()
+{
+    return $this->hasOne(Member::class);
+}
+
+public function partner()
+{
+    return $this->hasOne(Partner::class);
+}
 ```
+
+> `canAccessPanel()` は admin のみ許可に更新： `return $this->role === 'admin';`
+
+### 4-2: membersテーブル（日本側利用者）
+
+- [ ] **Step 1: モデル+マイグレーション作成**
+
+Run: `docker compose exec app php artisan make:model Member -m`
 
 - [ ] **Step 2: マイグレーション編集**
 
 ```php
-Schema::create('schools', function (Blueprint $table) {
+Schema::create('members', function (Blueprint $table) {
     $table->id();
     $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-    $table->string('name');
-    $table->string('type');           // 学校・公民館・図書館・その他
+    $table->enum('type', ['family', 'cram_school', 'circle', 'public_facility', 'other']);
+    $table->string('org_name')->nullable();      // 法人名（家庭はnull）
     $table->string('prefecture');
     $table->string('contact_name');
-    $table->string('grade_range');    // 例: "小4-小6"
+    $table->string('grade_range')->nullable();   // 家庭=お子さんの学年帯
     $table->timestamps();
 });
 ```
 
-- [ ] **Step 3: `app/Models/School.php` 編集**
+- [ ] **Step 3: `app/Models/Member.php` 編集**
 
 ```php
 <?php
@@ -544,25 +218,34 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class School extends Model
+class Member extends Model
 {
     protected $fillable = [
-        'user_id', 'name', 'type', 'prefecture', 'contact_name', 'grade_range',
+        'user_id', 'type', 'org_name', 'prefecture', 'contact_name', 'grade_range',
     ];
 
-    public function user() { return $this->belongsTo(User::class); }
-    public function sessions() { return $this->hasMany(Session::class); }
-    public function coupons() { return $this->hasMany(Coupon::class); }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function participations()
+    {
+        return $this->hasMany(SessionParticipant::class);
+    }
+
+    public function coupons()
+    {
+        return $this->hasMany(Coupon::class);
+    }
 }
 ```
 
-### 4-3: partnersテーブル
+### 4-3: partnersテーブル（海外側提供者）
 
-- [ ] **Step 1: マイグレーション・モデル作成**
+- [ ] **Step 1: モデル+マイグレーション作成**
 
-```bash
-docker compose exec app php artisan make:model Partner -m
-```
+Run: `docker compose exec app php artisan make:model Partner -m`
 
 - [ ] **Step 2: マイグレーション編集**
 
@@ -570,8 +253,9 @@ docker compose exec app php artisan make:model Partner -m
 Schema::create('partners', function (Blueprint $table) {
     $table->id();
     $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-    $table->string('school_name');
-    $table->string('country');
+    $table->enum('provider_type', ['overseas_school', 'local_japanese']);
+    $table->string('display_name');               // 校名 or 活動者名
+    $table->string('country');                    // 例: "ケニア"
     $table->string('region');
     $table->string('contact_name');
     $table->string('video_url')->nullable();
@@ -579,8 +263,8 @@ Schema::create('partners', function (Blueprint $table) {
           ->default('pending');
     $table->decimal('rating_score', 3, 2)->default(0);
     $table->unsignedInteger('penalty_count')->default(0);
-    $table->unsignedInteger('support_pool')->default(0);
-    $table->json('themes')->nullable();
+    $table->unsignedInteger('support_pool')->default(0);   // 物資支援プール(円)
+    $table->json('themes')->nullable();           // ThemeType値の配列
     $table->string('grade_range');
     $table->timestamps();
 });
@@ -598,9 +282,9 @@ use Illuminate\Database\Eloquent\Model;
 class Partner extends Model
 {
     protected $fillable = [
-        'user_id', 'school_name', 'country', 'region', 'contact_name',
-        'video_url', 'status', 'rating_score', 'penalty_count',
-        'support_pool', 'themes', 'grade_range',
+        'user_id', 'provider_type', 'display_name', 'country', 'region',
+        'contact_name', 'video_url', 'status', 'rating_score',
+        'penalty_count', 'support_pool', 'themes', 'grade_range',
     ];
 
     protected $casts = [
@@ -608,55 +292,162 @@ class Partner extends Model
         'rating_score' => 'float',
     ];
 
-    public function user() { return $this->belongsTo(User::class); }
-    public function sessions() { return $this->hasMany(Session::class); }
-    public function supportRequests() { return $this->hasMany(SupportRequest::class); }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function sessions()
+    {
+        return $this->hasMany(Session::class);
+    }
+
+    public function supportRequests()
+    {
+        return $this->hasMany(SupportRequest::class);
+    }
 }
 ```
 
-### 4-4: sessions / support_requests / couponsテーブル
+### 4-4: sessionsテーブル（セッション枠）
 
-- [ ] **Step 1: マイグレーション・モデル一括作成**
+- [ ] **Step 1: モデル+マイグレーション作成**
 
-```bash
-docker compose exec app php artisan make:model Session -m
-docker compose exec app php artisan make:model SupportRequest -m
-docker compose exec app php artisan make:model Coupon -m
-```
+Run: `docker compose exec app php artisan make:model Session -m`
 
-- [ ] **Step 2: sessions マイグレーション編集**
+- [ ] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('sessions', function (Blueprint $table) {
     $table->id();
-    $table->foreignId('school_id')->constrained()->cascadeOnDelete();
     $table->foreignId('partner_id')->constrained()->cascadeOnDelete();
+    $table->enum('session_type', ['private', 'open']);
     $table->dateTime('scheduled_at');
-    $table->unsignedInteger('duration_min');      // 45 or 60
-    $table->string('theme');
-    $table->text('question_list')->nullable();
-    $table->enum('status', [
-        'pending', 'confirmed', 'checklist_sent', 'ready', 'completed', 'cancelled'
-    ])->default('pending');
-    $table->unsignedInteger('price_jpy');
-    $table->unsignedInteger('support_amount');
-    $table->string('stripe_payment_id')->nullable();
-    $table->unsignedTinyInteger('rating_score')->nullable();
-    $table->text('rating_comment')->nullable();
-    $table->dateTime('question_list_sent_at')->nullable();
+    $table->unsignedInteger('duration_min');       // 45 or 60
+    $table->string('theme');                       // ThemeType値
+    $table->unsignedInteger('capacity');           // 専用=1, オープン=N
+    $table->unsignedInteger('min_groups')->default(1);  // オープン成立最低数
+    $table->boolean('with_facilitator')->default(false);
+    $table->unsignedInteger('price_jpy');          // 1グループあたり
+    $table->enum('status', ['draft', 'open', 'confirmed', 'ready', 'completed', 'cancelled'])
+          ->default('draft');
     $table->dateTime('ready_checked_at')->nullable();
     $table->dateTime('cancelled_at')->nullable();
     $table->timestamps();
 });
 ```
 
-- [ ] **Step 3: support_requests マイグレーション編集**
+- [ ] **Step 3: `app/Models/Session.php` 編集**
+
+> ⚠️ クラス名 `Session` は `Illuminate\Support\Facades\Session` と衝突しうる。本モデルを使う側では `use App\Models\Session;` を明示し、Facadeとの混在を避ける。
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Session extends Model
+{
+    protected $fillable = [
+        'partner_id', 'session_type', 'scheduled_at', 'duration_min',
+        'theme', 'capacity', 'min_groups', 'with_facilitator',
+        'price_jpy', 'status', 'ready_checked_at', 'cancelled_at',
+    ];
+
+    protected $casts = [
+        'scheduled_at'     => 'datetime',
+        'ready_checked_at' => 'datetime',
+        'cancelled_at'     => 'datetime',
+        'with_facilitator' => 'boolean',
+    ];
+
+    public function partner()
+    {
+        return $this->belongsTo(Partner::class);
+    }
+
+    public function participants()
+    {
+        return $this->hasMany(SessionParticipant::class);
+    }
+}
+```
+
+### 4-5: session_participantsテーブル（参加グループ）
+
+- [ ] **Step 1: モデル+マイグレーション作成**
+
+Run: `docker compose exec app php artisan make:model SessionParticipant -m`
+
+- [ ] **Step 2: マイグレーション編集**
+
+```php
+Schema::create('session_participants', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('session_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('member_id')->constrained()->cascadeOnDelete();
+    $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('pending');
+    $table->string('stripe_payment_id')->nullable();   // Phase2で使用
+    $table->unsignedInteger('price_paid');
+    $table->unsignedInteger('support_amount');         // price_paidの50%
+    $table->text('question_list')->nullable();
+    $table->dateTime('question_list_sent_at')->nullable();
+    $table->unsignedTinyInteger('rating_score')->nullable();  // ★1-5
+    $table->text('rating_comment')->nullable();
+    $table->dateTime('cancelled_at')->nullable();
+    $table->timestamps();
+});
+```
+
+- [ ] **Step 3: `app/Models/SessionParticipant.php` 編集**
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class SessionParticipant extends Model
+{
+    protected $fillable = [
+        'session_id', 'member_id', 'status', 'stripe_payment_id',
+        'price_paid', 'support_amount', 'question_list',
+        'question_list_sent_at', 'rating_score', 'rating_comment', 'cancelled_at',
+    ];
+
+    protected $casts = [
+        'question_list_sent_at' => 'datetime',
+        'cancelled_at'          => 'datetime',
+    ];
+
+    public function session()
+    {
+        return $this->belongsTo(Session::class);
+    }
+
+    public function member()
+    {
+        return $this->belongsTo(Member::class);
+    }
+}
+```
+
+### 4-6: support_requestsテーブル（物資支援）
+
+- [ ] **Step 1: モデル+マイグレーション作成**
+
+Run: `docker compose exec app php artisan make:model SupportRequest -m`
+
+- [ ] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('support_requests', function (Blueprint $table) {
     $table->id();
     $table->foreignId('partner_id')->constrained()->cascadeOnDelete();
-    $table->json('item_list');                    // [{name, quantity}]
+    $table->json('item_list');                         // [{name, quantity}]
     $table->unsignedInteger('total_amount_jpy');
     $table->enum('status', ['pending', 'shipped', 'delivered'])->default('pending');
     $table->string('receipt_photo_url')->nullable();
@@ -665,66 +456,105 @@ Schema::create('support_requests', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 4: coupons マイグレーション編集**
+- [ ] **Step 3: `app/Models/SupportRequest.php` 編集**
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class SupportRequest extends Model
+{
+    protected $fillable = [
+        'partner_id', 'item_list', 'total_amount_jpy',
+        'status', 'receipt_photo_url', 'delivered_at',
+    ];
+
+    protected $casts = [
+        'item_list'    => 'array',
+        'delivered_at' => 'datetime',
+    ];
+
+    public function partner()
+    {
+        return $this->belongsTo(Partner::class);
+    }
+}
+```
+
+### 4-7: couponsテーブル（クーポン）
+
+- [ ] **Step 1: モデル+マイグレーション作成**
+
+Run: `docker compose exec app php artisan make:model Coupon -m`
+
+- [ ] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('coupons', function (Blueprint $table) {
     $table->id();
-    $table->foreignId('school_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('member_id')->constrained()->cascadeOnDelete();
     $table->unsignedInteger('discount_pct');
-    $table->string('reason');
+    $table->enum('reason', ['early_bird', 'auto_cancel']);  // 先着300名特典 / 自動キャンセル時
+    $table->string('code')->nullable();
     $table->dateTime('used_at')->nullable();
     $table->dateTime('expires_at');
     $table->timestamps();
 });
 ```
 
-- [ ] **Step 5: Session / SupportRequest / Coupon モデルのfillable定義**
+- [ ] **Step 3: `app/Models/Coupon.php` 編集**
 
-`app/Models/Session.php`:
 ```php
-protected $fillable = [
-    'school_id', 'partner_id', 'scheduled_at', 'duration_min',
-    'theme', 'question_list', 'status', 'price_jpy', 'support_amount',
-    'stripe_payment_id', 'rating_score', 'rating_comment',
-    'question_list_sent_at', 'ready_checked_at', 'cancelled_at',
-];
-protected $casts = ['scheduled_at' => 'datetime'];
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Coupon extends Model
+{
+    protected $fillable = [
+        'member_id', 'discount_pct', 'reason', 'code', 'used_at', 'expires_at',
+    ];
+
+    protected $casts = [
+        'used_at'    => 'datetime',
+        'expires_at' => 'datetime',
+    ];
+
+    public function member()
+    {
+        return $this->belongsTo(Member::class);
+    }
+}
 ```
 
-`app/Models/SupportRequest.php`:
-```php
-protected $fillable = [
-    'partner_id', 'item_list', 'total_amount_jpy',
-    'status', 'receipt_photo_url', 'delivered_at',
-];
-protected $casts = ['item_list' => 'array'];
-```
+### 4-8: マイグレーション実行・検証・コミット
 
-`app/Models/Coupon.php`:
-```php
-protected $fillable = [
-    'school_id', 'discount_pct', 'reason', 'used_at', 'expires_at',
-];
-protected $casts = [
-    'used_at'    => 'datetime',
-    'expires_at' => 'datetime',
-];
-```
+- [ ] **Step 1: マイグレーション実行**
 
-- [ ] **Step 6: マイグレーション実行**
+Run: `docker compose exec app php artisan migrate`
+Expected: 全テーブルが `DONE` 表示。
 
-```bash
-docker compose exec app php artisan migrate
-```
+- [ ] **Step 2: テーブル確認**
 
-Expected: 全テーブルが `Migrated` と表示される
+Run: `docker compose exec app php artisan db:show --counts`
+Expected: members / partners / sessions / session_participants / support_requests / coupons / users が並ぶ。
 
-- [ ] **Step 7: コミット**
+- [ ] **Step 3: Larastan・Pint チェック**
+
+Run: `docker compose exec app ./vendor/bin/pint`
+Run: `docker compose exec app ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M`
+Expected: pint整形・phpstan `[OK] No errors`。
+
+- [ ] **Step 4: コミット**
 
 ```bash
 git add database/migrations/ app/Models/
-git commit -m "feat(db): add all migrations and Eloquent models"
+git commit -m "feat(db): add members/partners/sessions/participants/support/coupons migrations and models"
 ```
 
 ---
@@ -732,14 +562,46 @@ git commit -m "feat(db): add all migrations and Eloquent models"
 ## Task 5: クリーンアーキテクチャ骨格
 
 **Files:**
-- Create: `app/Domain/` 以下（Entity / ValueObject / Repository Interface）
-- Create: `app/UseCases/Auth/` 以下
-- Create: `app/Infrastructure/Repositories/` 以下
+- Create: `app/Domain/ValueObjects/` 4ファイル
+- Create: `app/Domain/Repositories/` 2ファイル
+- Create: `app/UseCases/Auth/` 6ファイル
+- Create: `app/Infrastructure/Repositories/` 2ファイル
 - Modify: `app/Providers/AppServiceProvider.php`
 
-### 5-1: Domain Layer
+### 5-1: ValueObjects（PHP enum）
 
-- [ ] **Step 1: ValueObject — `app/Domain/ValueObjects/PartnerStatus.php`**
+- [ ] **Step 1: `app/Domain/ValueObjects/MemberType.php`**
+
+```php
+<?php
+
+namespace App\Domain\ValueObjects;
+
+enum MemberType: string
+{
+    case Family         = 'family';
+    case CramSchool     = 'cram_school';
+    case Circle         = 'circle';
+    case PublicFacility = 'public_facility';
+    case Other          = 'other';
+}
+```
+
+- [ ] **Step 2: `app/Domain/ValueObjects/ProviderType.php`**
+
+```php
+<?php
+
+namespace App\Domain\ValueObjects;
+
+enum ProviderType: string
+{
+    case OverseasSchool = 'overseas_school';
+    case LocalJapanese  = 'local_japanese';
+}
+```
+
+- [ ] **Step 3: `app/Domain/ValueObjects/PartnerStatus.php`**
 
 ```php
 <?php
@@ -755,22 +617,39 @@ enum PartnerStatus: string
 }
 ```
 
-- [ ] **Step 2: Repository Interface — `app/Domain/Repositories/SchoolRepositoryInterface.php`**
+- [ ] **Step 4: `app/Domain/ValueObjects/ThemeType.php`**
+
+```php
+<?php
+
+namespace App\Domain\ValueObjects;
+
+enum ThemeType: string
+{
+    case Culture = 'culture';   // 文化交流
+    case English = 'english';   // 英語学習
+    case Global  = 'global';    // 国際理解
+}
+```
+
+### 5-2: Repository Interfaces
+
+- [ ] **Step 5: `app/Domain/Repositories/MemberRepositoryInterface.php`**
 
 ```php
 <?php
 
 namespace App\Domain\Repositories;
 
-use App\Models\School;
+use App\Models\Member;
 
-interface SchoolRepositoryInterface
+interface MemberRepositoryInterface
 {
-    public function create(array $attributes): School;
+    public function create(array $attributes): Member;
 }
 ```
 
-- [ ] **Step 3: Repository Interface — `app/Domain/Repositories/PartnerRepositoryInterface.php`**
+- [ ] **Step 6: `app/Domain/Repositories/PartnerRepositoryInterface.php`**
 
 ```php
 <?php
@@ -785,30 +664,31 @@ interface PartnerRepositoryInterface
 }
 ```
 
-### 5-2: UseCase Layer — RegisterSchool
+### 5-3: UseCase — RegisterMember
 
-- [ ] **Step 4: `app/UseCases/Auth/RegisterSchoolInput.php`**
+- [ ] **Step 7: `app/UseCases/Auth/RegisterMemberInput.php`**
 
 ```php
 <?php
 
 namespace App\UseCases\Auth;
 
-readonly class RegisterSchoolInput
+readonly class RegisterMemberInput
 {
     public function __construct(
         public string $email,
         public string $password,
         public string $name,
-        public string $type,
+        public string $type,           // MemberType値
+        public ?string $orgName,
         public string $prefecture,
         public string $contactName,
-        public string $gradeRange,
+        public ?string $gradeRange,
     ) {}
 }
 ```
 
-- [ ] **Step 5: `app/UseCases/Auth/RegisterSchoolOutput.php`**
+- [ ] **Step 8: `app/UseCases/Auth/RegisterMemberOutput.php`**
 
 ```php
 <?php
@@ -817,7 +697,7 @@ namespace App\UseCases\Auth;
 
 use App\Models\User;
 
-readonly class RegisterSchoolOutput
+readonly class RegisterMemberOutput
 {
     public function __construct(
         public User $user,
@@ -825,49 +705,49 @@ readonly class RegisterSchoolOutput
 }
 ```
 
-- [ ] **Step 6: `app/UseCases/Auth/RegisterSchoolUseCase.php`**
+- [ ] **Step 9: `app/UseCases/Auth/RegisterMemberUseCase.php`**
 
 ```php
 <?php
 
 namespace App\UseCases\Auth;
 
-use App\Domain\Repositories\SchoolRepositoryInterface;
+use App\Domain\Repositories\MemberRepositoryInterface;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
-class RegisterSchoolUseCase
+class RegisterMemberUseCase
 {
     public function __construct(
-        private SchoolRepositoryInterface $schoolRepository,
+        private MemberRepositoryInterface $memberRepository,
     ) {}
 
-    public function execute(RegisterSchoolInput $input): RegisterSchoolOutput
+    public function execute(RegisterMemberInput $input): RegisterMemberOutput
     {
         $user = User::create([
             'name'     => $input->name,
             'email'    => $input->email,
             'password' => Hash::make($input->password),
-            'role'     => 'school',
+            'role'     => 'member',
         ]);
 
-        $this->schoolRepository->create([
+        $this->memberRepository->create([
             'user_id'      => $user->id,
-            'name'         => $input->name,
             'type'         => $input->type,
+            'org_name'     => $input->orgName,
             'prefecture'   => $input->prefecture,
             'contact_name' => $input->contactName,
             'grade_range'  => $input->gradeRange,
         ]);
 
-        return new RegisterSchoolOutput($user);
+        return new RegisterMemberOutput($user);
     }
 }
 ```
 
-### 5-3: UseCase Layer — RegisterPartner
+### 5-4: UseCase — RegisterPartner
 
-- [ ] **Step 7: `app/UseCases/Auth/RegisterPartnerInput.php`**
+- [ ] **Step 10: `app/UseCases/Auth/RegisterPartnerInput.php`**
 
 ```php
 <?php
@@ -879,17 +759,18 @@ readonly class RegisterPartnerInput
     public function __construct(
         public string $email,
         public string $password,
-        public string $schoolName,
+        public string $providerType,   // ProviderType値
+        public string $displayName,
         public string $country,
         public string $region,
         public string $contactName,
-        public array  $themes,
+        public array  $themes,         // ThemeType値の配列
         public string $gradeRange,
     ) {}
 }
 ```
 
-- [ ] **Step 8: `app/UseCases/Auth/RegisterPartnerOutput.php`**
+- [ ] **Step 11: `app/UseCases/Auth/RegisterPartnerOutput.php`**
 
 ```php
 <?php
@@ -906,7 +787,7 @@ readonly class RegisterPartnerOutput
 }
 ```
 
-- [ ] **Step 9: `app/UseCases/Auth/RegisterPartnerUseCase.php`**
+- [ ] **Step 12: `app/UseCases/Auth/RegisterPartnerUseCase.php`**
 
 ```php
 <?php
@@ -933,14 +814,15 @@ class RegisterPartnerUseCase
         ]);
 
         $this->partnerRepository->create([
-            'user_id'      => $user->id,
-            'school_name'  => $input->schoolName,
-            'country'      => $input->country,
-            'region'       => $input->region,
-            'contact_name' => $input->contactName,
-            'themes'       => $input->themes,
-            'grade_range'  => $input->gradeRange,
-            'status'       => 'pending',
+            'user_id'       => $user->id,
+            'provider_type' => $input->providerType,
+            'display_name'  => $input->displayName,
+            'country'       => $input->country,
+            'region'        => $input->region,
+            'contact_name'  => $input->contactName,
+            'themes'        => $input->themes,
+            'grade_range'   => $input->gradeRange,
+            'status'        => 'pending',
         ]);
 
         return new RegisterPartnerOutput($user);
@@ -948,28 +830,28 @@ class RegisterPartnerUseCase
 }
 ```
 
-### 5-4: Infrastructure Layer（Eloquentリポジトリ実装）
+### 5-5: Infrastructure（Eloquentリポジトリ実装）
 
-- [ ] **Step 10: `app/Infrastructure/Repositories/EloquentSchoolRepository.php`**
+- [ ] **Step 13: `app/Infrastructure/Repositories/EloquentMemberRepository.php`**
 
 ```php
 <?php
 
 namespace App\Infrastructure\Repositories;
 
-use App\Domain\Repositories\SchoolRepositoryInterface;
-use App\Models\School;
+use App\Domain\Repositories\MemberRepositoryInterface;
+use App\Models\Member;
 
-class EloquentSchoolRepository implements SchoolRepositoryInterface
+class EloquentMemberRepository implements MemberRepositoryInterface
 {
-    public function create(array $attributes): School
+    public function create(array $attributes): Member
     {
-        return School::create($attributes);
+        return Member::create($attributes);
     }
 }
 ```
 
-- [ ] **Step 11: `app/Infrastructure/Repositories/EloquentPartnerRepository.php`**
+- [ ] **Step 14: `app/Infrastructure/Repositories/EloquentPartnerRepository.php`**
 
 ```php
 <?php
@@ -988,41 +870,28 @@ class EloquentPartnerRepository implements PartnerRepositoryInterface
 }
 ```
 
-### 5-5: DIバインディング
+### 5-6: DIバインディング
 
-- [ ] **Step 12: `app/Providers/AppServiceProvider.php` にバインディング追加**
+- [ ] **Step 15: `app/Providers/AppServiceProvider.php` の register() にバインディング追加**
 
 ```php
-<?php
-
-namespace App\Providers;
-
-use App\Domain\Repositories\SchoolRepositoryInterface;
+use App\Domain\Repositories\MemberRepositoryInterface;
 use App\Domain\Repositories\PartnerRepositoryInterface;
-use App\Infrastructure\Repositories\EloquentSchoolRepository;
+use App\Infrastructure\Repositories\EloquentMemberRepository;
 use App\Infrastructure\Repositories\EloquentPartnerRepository;
-use Illuminate\Support\ServiceProvider;
 
-class AppServiceProvider extends ServiceProvider
+public function register(): void
 {
-    public function register(): void
-    {
-        $this->app->bind(
-            SchoolRepositoryInterface::class,
-            EloquentSchoolRepository::class,
-        );
-
-        $this->app->bind(
-            PartnerRepositoryInterface::class,
-            EloquentPartnerRepository::class,
-        );
-    }
+    $this->app->bind(MemberRepositoryInterface::class, EloquentMemberRepository::class);
+    $this->app->bind(PartnerRepositoryInterface::class, EloquentPartnerRepository::class);
 }
 ```
 
-- [ ] **Step 13: コミット**
+- [ ] **Step 16: Pint・Larastan・コミット**
 
 ```bash
+docker compose exec app ./vendor/bin/pint
+docker compose exec app ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
 git add app/Domain/ app/UseCases/ app/Infrastructure/ app/Providers/
 git commit -m "feat(arch): add clean architecture skeleton (Domain/UseCase/Infrastructure)"
 ```
@@ -1034,53 +903,50 @@ git commit -m "feat(arch): add clean architecture skeleton (Domain/UseCase/Infra
 **TDDサイクル：🔴 Red → 🟢 Green → 🔵 Refactor**
 
 **Files:**
-- Create: `tests/Unit/UseCases/RegisterSchoolUseCaseTest.php`
+- Create: `tests/Unit/UseCases/RegisterMemberUseCaseTest.php`
 - Create: `tests/Unit/UseCases/RegisterPartnerUseCaseTest.php`
 
-- [ ] **Step 1: `tests/Unit/UseCases/RegisterSchoolUseCaseTest.php` を作成（🔴 先にテストを書く）**
+- [ ] **Step 1: `tests/Unit/UseCases/RegisterMemberUseCaseTest.php`（🔴）**
 
 ```php
 <?php
 
-use App\Domain\Repositories\SchoolRepositoryInterface;
-use App\Models\School;
-use App\Models\User;
-use App\UseCases\Auth\RegisterSchoolInput;
-use App\UseCases\Auth\RegisterSchoolUseCase;
+use App\Domain\Repositories\MemberRepositoryInterface;
+use App\Models\Member;
+use App\UseCases\Auth\RegisterMemberInput;
+use App\UseCases\Auth\RegisterMemberUseCase;
 
-it('学校ユーザーを登録してschoolロールが付与される', function () {
-    // Arrange: リポジトリをモック
-    $schoolRepo = Mockery::mock(SchoolRepositoryInterface::class);
-    $schoolRepo->shouldReceive('create')
+it('利用者を登録してmemberロールが付与される', function () {
+    $memberRepo = Mockery::mock(MemberRepositoryInterface::class);
+    $memberRepo->shouldReceive('create')
         ->once()
-        ->with(Mockery::on(fn($attrs) =>
-            $attrs['name'] === 'テスト小学校' &&
+        ->with(Mockery::on(fn ($attrs) =>
+            $attrs['type'] === 'family' &&
             $attrs['prefecture'] === '東京都'
         ))
-        ->andReturn(new School(['name' => 'テスト小学校']));
+        ->andReturn(new Member(['type' => 'family']));
 
-    $useCase = new RegisterSchoolUseCase($schoolRepo);
+    $useCase = new RegisterMemberUseCase($memberRepo);
 
-    $input = new RegisterSchoolInput(
-        email:       'school@example.com',
+    $input = new RegisterMemberInput(
+        email:       'family@example.com',
         password:    'password123',
-        name:        'テスト小学校',
-        type:        '学校',
+        name:        '田中家',
+        type:        'family',
+        orgName:     null,
         prefecture:  '東京都',
         contactName: '田中太郎',
-        gradeRange:  '小4-小6',
+        gradeRange:  '小4〜6年',
     );
 
-    // Act
     $output = $useCase->execute($input);
 
-    // Assert
-    expect($output->user->role)->toBe('school');
-    expect($output->user->email)->toBe('school@example.com');
+    expect($output->user->role)->toBe('member');
+    expect($output->user->email)->toBe('family@example.com');
 });
 ```
 
-- [ ] **Step 2: `tests/Unit/UseCases/RegisterPartnerUseCaseTest.php` を作成（🔴）**
+- [ ] **Step 2: `tests/Unit/UseCases/RegisterPartnerUseCaseTest.php`（🔴）**
 
 ```php
 <?php
@@ -1090,27 +956,29 @@ use App\Models\Partner;
 use App\UseCases\Auth\RegisterPartnerInput;
 use App\UseCases\Auth\RegisterPartnerUseCase;
 
-it('海外校ユーザーをpendingステータスで登録する', function () {
+it('海外パートナーをpendingステータスで登録する', function () {
     $partnerRepo = Mockery::mock(PartnerRepositoryInterface::class);
     $partnerRepo->shouldReceive('create')
         ->once()
-        ->with(Mockery::on(fn($attrs) =>
+        ->with(Mockery::on(fn ($attrs) =>
             $attrs['status'] === 'pending' &&
-            $attrs['school_name'] === 'Sunshine Elementary'
+            $attrs['provider_type'] === 'overseas_school' &&
+            $attrs['display_name'] === 'Sunshine Elementary'
         ))
-        ->andReturn(new Partner(['school_name' => 'Sunshine Elementary']));
+        ->andReturn(new Partner(['display_name' => 'Sunshine Elementary']));
 
     $useCase = new RegisterPartnerUseCase($partnerRepo);
 
     $input = new RegisterPartnerInput(
-        email:       'partner@example.com',
-        password:    'password123',
-        schoolName:  'Sunshine Elementary',
-        country:     'Philippines',
-        region:      'Manila',
-        contactName: 'Maria Santos',
-        themes:      ['文化紹介', 'SDGs'],
-        gradeRange:  'Grade 4-6',
+        email:        'partner@example.com',
+        password:     'password123',
+        providerType: 'overseas_school',
+        displayName:  'Sunshine Elementary',
+        country:      'ケニア',
+        region:       'Nairobi',
+        contactName:  'Maria Santos',
+        themes:       ['culture', 'global'],
+        gradeRange:   'Grade 4-6',
     );
 
     $output = $useCase->execute($input);
@@ -1119,27 +987,16 @@ it('海外校ユーザーをpendingステータスで登録する', function () 
 });
 ```
 
-- [ ] **Step 3: テスト実行（🔴 Red確認）**
+- [ ] **Step 3: テスト実行（🔴→🟢）**
 
-```bash
-docker compose exec app php artisan test tests/Unit/
-```
+Run: `docker compose exec app php artisan test tests/Unit/`
+Expected: `PASS  Tests\Unit\UseCases\...` × 2（UseCaseはTask5で実装済みのため通る）
 
-Expected: テストが失敗する（UseCaseがまだ不完全 or DBがない）
-
-- [ ] **Step 4: テストが通ることを確認（🟢 Green）**
-
-```bash
-docker compose exec app php artisan test tests/Unit/
-```
-
-Expected: `PASS  Tests\Unit\UseCases\...` × 2
-
-- [ ] **Step 5: コミット**
+- [ ] **Step 4: コミット**
 
 ```bash
 git add tests/Unit/
-git commit -m "test(usecase): add RegisterSchool and RegisterPartner unit tests (TDD)"
+git commit -m "test(usecase): add RegisterMember and RegisterPartner unit tests (TDD)"
 ```
 
 ---
@@ -1154,11 +1011,9 @@ git commit -m "test(usecase): add RegisterSchool and RegisterPartner unit tests 
 
 - [ ] **Step 1: ミドルウェア作成**
 
-```bash
-docker compose exec app php artisan make:middleware EnsureRole
-```
+Run: `docker compose exec app php artisan make:middleware EnsureRole`
 
-- [ ] **Step 2: `app/Http/Middleware/EnsureRole.php` を編集**
+- [ ] **Step 2: `app/Http/Middleware/EnsureRole.php` 編集**
 
 ```php
 <?php
@@ -1173,11 +1028,11 @@ class EnsureRole
 {
     public function handle(Request $request, Closure $next, string ...$roles): mixed
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login');
         }
 
-        if (!in_array(Auth::user()->role, $roles)) {
+        if (! in_array(Auth::user()->role, $roles, true)) {
             abort(403, 'このページへのアクセス権限がありません。');
         }
 
@@ -1186,42 +1041,18 @@ class EnsureRole
 }
 ```
 
-- [ ] **Step 3: `bootstrap/app.php` にミドルウェア登録**
+- [ ] **Step 3: `bootstrap/app.php` にエイリアス登録**
 
+`->withMiddleware(function (Middleware $middleware) { ... })` 内に追加：
 ```php
-->withMiddleware(function (Middleware $middleware) {
-    $middleware->alias([
-        'role' => \App\Http\Middleware\EnsureRole::class,
-    ]);
-})
+$middleware->alias([
+    'role' => \App\Http\Middleware\EnsureRole::class,
+]);
 ```
 
-- [ ] **Step 4: `routes/web.php` でロール別ルート定義**
+- [ ] **Step 4: `app/Http/Controllers/DashboardController.php` 作成**
 
-```php
-<?php
-
-use App\Http\Controllers\DashboardController;
-use Illuminate\Support\Facades\Route;
-
-Route::get('/', fn() => redirect()->route('login'));
-
-Route::middleware(['auth', 'role:school'])->prefix('school')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'school'])->name('school.dashboard');
-});
-
-Route::middleware(['auth', 'role:partner'])->prefix('partner')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'partner'])->name('partner.dashboard');
-});
-
-require __DIR__.'/auth.php';
-```
-
-- [ ] **Step 5: `app/Http/Controllers/DashboardController.php` 作成**
-
-```bash
-docker compose exec app php artisan make:controller DashboardController
-```
+Run: `docker compose exec app php artisan make:controller DashboardController`
 
 ```php
 <?php
@@ -1233,9 +1064,9 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function school(): Response
+    public function member(): Response
     {
-        return Inertia::render('Dashboard/School');
+        return Inertia::render('Dashboard/Member');
     }
 
     public function partner(): Response
@@ -1245,10 +1076,55 @@ class DashboardController extends Controller
 }
 ```
 
-- [ ] **Step 6: コミット**
+- [ ] **Step 5: `routes/web.php` でロール別ルート定義**
+
+```php
+<?php
+
+use App\Http\Controllers\DashboardController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', fn () => redirect()->route('login'));
+
+Route::middleware(['auth', 'role:member'])->prefix('member')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'member'])->name('member.dashboard');
+});
+
+Route::middleware(['auth', 'role:partner'])->prefix('partner')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'partner'])->name('partner.dashboard');
+});
+
+require __DIR__.'/auth.php';
+```
+
+- [ ] **Step 6: ダッシュボードページ作成（.tsx）**
+
+`resources/js/Pages/Dashboard/Member.tsx`:
+```tsx
+export default function MemberDashboard() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <h1 className="text-2xl font-bold">利用者ダッシュボード</h1>
+    </div>
+  )
+}
+```
+
+`resources/js/Pages/Dashboard/Partner.tsx`:
+```tsx
+export default function PartnerDashboard() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <h1 className="text-2xl font-bold">Partner Dashboard</h1>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 7: コミット**
 
 ```bash
-git add app/Http/Middleware/ bootstrap/app.php routes/web.php app/Http/Controllers/DashboardController.php
+git add app/Http/Middleware/ bootstrap/app.php routes/web.php app/Http/Controllers/DashboardController.php resources/js/Pages/Dashboard/
 git commit -m "feat(auth): add role-based middleware and dashboard routes"
 ```
 
@@ -1257,21 +1133,21 @@ git commit -m "feat(auth): add role-based middleware and dashboard routes"
 ## Task 8: 登録フォーム（Controller → UseCase呼び出し）
 
 **Files:**
-- Create: `app/Http/Requests/RegisterSchoolRequest.php`
+- Create: `app/Http/Requests/RegisterMemberRequest.php`
 - Create: `app/Http/Requests/RegisterPartnerRequest.php`
 - Modify: `app/Http/Controllers/Auth/RegisteredUserController.php`
 - Modify: `routes/auth.php`
-- Create: `resources/js/Pages/Auth/RegisterSchool.tsx`
+- Create: `resources/js/Pages/Auth/RegisterMember.tsx`
 - Create: `resources/js/Pages/Auth/RegisterPartner.tsx`
 
 - [ ] **Step 1: FormRequest作成**
 
 ```bash
-docker compose exec app php artisan make:request RegisterSchoolRequest
+docker compose exec app php artisan make:request RegisterMemberRequest
 docker compose exec app php artisan make:request RegisterPartnerRequest
 ```
 
-- [ ] **Step 2: `app/Http/Requests/RegisterSchoolRequest.php` 編集**
+- [ ] **Step 2: `app/Http/Requests/RegisterMemberRequest.php` 編集**
 
 ```php
 <?php
@@ -1281,9 +1157,12 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules;
 
-class RegisterSchoolRequest extends FormRequest
+class RegisterMemberRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true;
+    }
 
     public function rules(): array
     {
@@ -1291,10 +1170,11 @@ class RegisterSchoolRequest extends FormRequest
             'email'        => ['required', 'email', 'unique:users'],
             'password'     => ['required', 'confirmed', Rules\Password::defaults()],
             'name'         => ['required', 'string', 'max:255'],
-            'type'         => ['required', 'in:学校,公民館,図書館,その他'],
+            'type'         => ['required', 'in:family,cram_school,circle,public_facility,other'],
+            'org_name'     => ['nullable', 'string', 'max:255'],
             'prefecture'   => ['required', 'string', 'max:10'],
             'contact_name' => ['required', 'string', 'max:255'],
-            'grade_range'  => ['required', 'string', 'max:50'],
+            'grade_range'  => ['nullable', 'string', 'max:50'],
         ];
     }
 }
@@ -1312,20 +1192,24 @@ use Illuminate\Validation\Rules;
 
 class RegisterPartnerRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true;
+    }
 
     public function rules(): array
     {
         return [
-            'email'        => ['required', 'email', 'unique:users'],
-            'password'     => ['required', 'confirmed', Rules\Password::defaults()],
-            'school_name'  => ['required', 'string', 'max:255'],
-            'country'      => ['required', 'string', 'max:100'],
-            'region'       => ['required', 'string', 'max:100'],
-            'contact_name' => ['required', 'string', 'max:255'],
-            'themes'       => ['required', 'array', 'min:1'],
-            'themes.*'     => ['in:文化紹介,SDGs,英語教育'],
-            'grade_range'  => ['required', 'string', 'max:50'],
+            'email'         => ['required', 'email', 'unique:users'],
+            'password'      => ['required', 'confirmed', Rules\Password::defaults()],
+            'provider_type' => ['required', 'in:overseas_school,local_japanese'],
+            'display_name'  => ['required', 'string', 'max:255'],
+            'country'       => ['required', 'string', 'max:100'],
+            'region'        => ['required', 'string', 'max:100'],
+            'contact_name'  => ['required', 'string', 'max:255'],
+            'themes'        => ['required', 'array', 'min:1'],
+            'themes.*'      => ['in:culture,english,global'],
+            'grade_range'   => ['required', 'string', 'max:50'],
         ];
     }
 }
@@ -1339,10 +1223,10 @@ class RegisterPartnerRequest extends FormRequest
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\RegisterSchoolRequest;
+use App\Http\Requests\RegisterMemberRequest;
 use App\Http\Requests\RegisterPartnerRequest;
-use App\UseCases\Auth\RegisterSchoolInput;
-use App\UseCases\Auth\RegisterSchoolUseCase;
+use App\UseCases\Auth\RegisterMemberInput;
+use App\UseCases\Auth\RegisterMemberUseCase;
 use App\UseCases\Auth\RegisterPartnerInput;
 use App\UseCases\Auth\RegisterPartnerUseCase;
 use Illuminate\Auth\Events\Registered;
@@ -1354,13 +1238,13 @@ use Inertia\Response;
 class RegisteredUserController extends Controller
 {
     public function __construct(
-        private RegisterSchoolUseCase  $registerSchoolUseCase,
+        private RegisterMemberUseCase  $registerMemberUseCase,
         private RegisterPartnerUseCase $registerPartnerUseCase,
     ) {}
 
-    public function createSchool(): Response
+    public function createMember(): Response
     {
-        return Inertia::render('Auth/RegisterSchool');
+        return Inertia::render('Auth/RegisterMember');
     }
 
     public function createPartner(): Response
@@ -1368,37 +1252,39 @@ class RegisteredUserController extends Controller
         return Inertia::render('Auth/RegisterPartner');
     }
 
-    public function storeSchool(RegisterSchoolRequest $request): RedirectResponse
+    public function storeMember(RegisterMemberRequest $request): RedirectResponse
     {
-        $input = new RegisterSchoolInput(
+        $input = new RegisterMemberInput(
             email:       $request->email,
             password:    $request->password,
             name:        $request->name,
             type:        $request->type,
+            orgName:     $request->org_name,
             prefecture:  $request->prefecture,
             contactName: $request->contact_name,
             gradeRange:  $request->grade_range,
         );
 
-        $output = $this->registerSchoolUseCase->execute($input);
+        $output = $this->registerMemberUseCase->execute($input);
 
         event(new Registered($output->user));
         Auth::login($output->user);
 
-        return redirect()->route('school.dashboard');
+        return redirect()->route('member.dashboard');
     }
 
     public function storePartner(RegisterPartnerRequest $request): RedirectResponse
     {
         $input = new RegisterPartnerInput(
-            email:       $request->email,
-            password:    $request->password,
-            schoolName:  $request->school_name,
-            country:     $request->country,
-            region:      $request->region,
-            contactName: $request->contact_name,
-            themes:      $request->themes,
-            gradeRange:  $request->grade_range,
+            email:        $request->email,
+            password:     $request->password,
+            providerType: $request->provider_type,
+            displayName:  $request->display_name,
+            country:      $request->country,
+            region:       $request->region,
+            contactName:  $request->contact_name,
+            themes:       $request->themes,
+            gradeRange:   $request->grade_range,
         );
 
         $output = $this->registerPartnerUseCase->execute($input);
@@ -1413,32 +1299,39 @@ class RegisteredUserController extends Controller
 
 - [ ] **Step 5: `routes/auth.php` に登録ルート追加**
 
+`Route::middleware('guest')->group(function () { ... })` 内に追加：
 ```php
 use App\Http\Controllers\Auth\RegisteredUserController;
 
-Route::middleware('guest')->group(function () {
-    Route::get('register/school', [RegisteredUserController::class, 'createSchool'])
-         ->name('register.school');
-    Route::post('register/school', [RegisteredUserController::class, 'storeSchool']);
+Route::get('register/member', [RegisteredUserController::class, 'createMember'])->name('register.member');
+Route::post('register/member', [RegisteredUserController::class, 'storeMember']);
 
-    Route::get('register/partner', [RegisteredUserController::class, 'createPartner'])
-         ->name('register.partner');
-    Route::post('register/partner', [RegisteredUserController::class, 'storePartner']);
-});
+Route::get('register/partner', [RegisteredUserController::class, 'createPartner'])->name('register.partner');
+Route::post('register/partner', [RegisteredUserController::class, 'storePartner']);
 ```
 
-- [ ] **Step 6: `resources/js/Pages/Auth/RegisterSchool.tsx` を作成**
+- [ ] **Step 6: `resources/js/Pages/Auth/RegisterMember.tsx` 作成**
 
 ```tsx
 import { useForm } from '@inertiajs/react'
+import React from 'react'
 
-export default function RegisterSchool() {
+const MEMBER_TYPES = [
+  { value: 'family', label: 'ご家庭' },
+  { value: 'cram_school', label: '個人塾' },
+  { value: 'circle', label: 'サークル団体' },
+  { value: 'public_facility', label: '公民館/図書館' },
+  { value: 'other', label: 'その他' },
+] as const
+
+export default function RegisterMember() {
   const { data, setData, post, processing, errors } = useForm({
     email: '',
     password: '',
     password_confirmation: '',
     name: '',
-    type: '学校',
+    type: 'family',
+    org_name: '',
     prefecture: '',
     contact_name: '',
     grade_range: '',
@@ -1446,19 +1339,45 @@ export default function RegisterSchool() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    post('/register/school')
+    post('/register/member')
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow">
-        <h1 className="text-2xl font-bold mb-6">日本校 新規登録</h1>
+        <h1 className="text-2xl font-bold mb-6">利用者 新規登録</h1>
         <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">利用者区分</label>
+            <select
+              value={data.type}
+              onChange={(e) => setData('type', e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            >
+              {MEMBER_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {data.type !== 'family' && (
+            <div>
+              <label className="block text-sm font-medium mb-1">団体名</label>
+              <input
+                type="text"
+                value={data.org_name}
+                onChange={(e) => setData('org_name', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+              {errors.org_name && <p className="text-red-500 text-sm mt-1">{errors.org_name}</p>}
+            </div>
+          )}
+
           {[
-            { label: '学校名', field: 'name', type: 'text' },
+            { label: 'お名前 / 団体名', field: 'name', type: 'text' },
             { label: '都道府県', field: 'prefecture', type: 'text' },
             { label: '担当者名', field: 'contact_name', type: 'text' },
-            { label: '対象学年（例: 小4〜小6）', field: 'grade_range', type: 'text' },
+            { label: 'お子さんの学年帯（任意）', field: 'grade_range', type: 'text' },
             { label: 'メールアドレス', field: 'email', type: 'email' },
             { label: 'パスワード', field: 'password', type: 'password' },
             { label: 'パスワード確認', field: 'password_confirmation', type: 'password' },
@@ -1467,29 +1386,15 @@ export default function RegisterSchool() {
               <label className="block text-sm font-medium mb-1">{label}</label>
               <input
                 type={type}
-                value={(data as any)[field]}
-                onChange={e => setData(field as any, e.target.value)}
+                value={(data as Record<string, string>)[field]}
+                onChange={(e) => setData(field as keyof typeof data, e.target.value)}
                 className="w-full border rounded-lg px-3 py-2"
-                required
               />
-              {(errors as any)[field] && (
-                <p className="text-red-500 text-sm mt-1">{(errors as any)[field]}</p>
+              {(errors as Record<string, string>)[field] && (
+                <p className="text-red-500 text-sm mt-1">{(errors as Record<string, string>)[field]}</p>
               )}
             </div>
           ))}
-
-          <div>
-            <label className="block text-sm font-medium mb-1">種別</label>
-            <select
-              value={data.type}
-              onChange={e => setData('type', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
-            >
-              {['学校', '公民館', '図書館', 'その他'].map(t => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </div>
 
           <button
             type="submit"
@@ -1505,19 +1410,30 @@ export default function RegisterSchool() {
 }
 ```
 
-- [ ] **Step 7: `resources/js/Pages/Auth/RegisterPartner.tsx` を作成**
+- [ ] **Step 7: `resources/js/Pages/Auth/RegisterPartner.tsx` 作成**
 
 ```tsx
 import { useForm } from '@inertiajs/react'
+import React from 'react'
 
-const THEMES = ['文化紹介', 'SDGs', '英語教育'] as const
+const THEMES = [
+  { value: 'culture', label: '文化交流' },
+  { value: 'english', label: '英語学習' },
+  { value: 'global', label: '国際理解' },
+] as const
+
+const PROVIDER_TYPES = [
+  { value: 'overseas_school', label: 'Overseas School' },
+  { value: 'local_japanese', label: 'Local Japanese' },
+] as const
 
 export default function RegisterPartner() {
   const { data, setData, post, processing, errors } = useForm({
     email: '',
     password: '',
     password_confirmation: '',
-    school_name: '',
+    provider_type: 'overseas_school',
+    display_name: '',
     country: '',
     region: '',
     contact_name: '',
@@ -1527,9 +1443,8 @@ export default function RegisterPartner() {
 
   const toggleTheme = (theme: string) => {
     setData('themes', data.themes.includes(theme)
-      ? data.themes.filter(t => t !== theme)
-      : [...data.themes, theme]
-    )
+      ? data.themes.filter((t) => t !== theme)
+      : [...data.themes, theme])
   }
 
   const submit = (e: React.FormEvent) => {
@@ -1540,14 +1455,27 @@ export default function RegisterPartner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow">
-        <h1 className="text-2xl font-bold mb-6">Partner School Registration</h1>
+        <h1 className="text-2xl font-bold mb-6">Partner Registration</h1>
         <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Provider Type</label>
+            <select
+              value={data.provider_type}
+              onChange={(e) => setData('provider_type', e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            >
+              {PROVIDER_TYPES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+
           {[
-            { label: 'School Name', field: 'school_name', type: 'text' },
+            { label: 'Display Name (School / Activist)', field: 'display_name', type: 'text' },
             { label: 'Country', field: 'country', type: 'text' },
             { label: 'Region', field: 'region', type: 'text' },
-            { label: 'Teacher Name', field: 'contact_name', type: 'text' },
-            { label: 'Grade Range (e.g. Grade 4-6)', field: 'grade_range', type: 'text' },
+            { label: 'Contact Name', field: 'contact_name', type: 'text' },
+            { label: 'Grade Range', field: 'grade_range', type: 'text' },
             { label: 'Email', field: 'email', type: 'email' },
             { label: 'Password', field: 'password', type: 'password' },
             { label: 'Confirm Password', field: 'password_confirmation', type: 'password' },
@@ -1556,13 +1484,12 @@ export default function RegisterPartner() {
               <label className="block text-sm font-medium mb-1">{label}</label>
               <input
                 type={type}
-                value={(data as any)[field]}
-                onChange={e => setData(field as any, e.target.value)}
+                value={(data as Record<string, string>)[field]}
+                onChange={(e) => setData(field as keyof typeof data, e.target.value)}
                 className="w-full border rounded-lg px-3 py-2"
-                required
               />
-              {(errors as any)[field] && (
-                <p className="text-red-500 text-sm mt-1">{(errors as any)[field]}</p>
+              {(errors as Record<string, string>)[field] && (
+                <p className="text-red-500 text-sm mt-1">{(errors as Record<string, string>)[field]}</p>
               )}
             </div>
           ))}
@@ -1570,18 +1497,18 @@ export default function RegisterPartner() {
           <div>
             <label className="block text-sm font-medium mb-1">Themes</label>
             <div className="flex gap-2 flex-wrap">
-              {THEMES.map(theme => (
+              {THEMES.map((theme) => (
                 <button
-                  key={theme}
+                  key={theme.value}
                   type="button"
-                  onClick={() => toggleTheme(theme)}
+                  onClick={() => toggleTheme(theme.value)}
                   className={`px-3 py-1 rounded-full border text-sm ${
-                    data.themes.includes(theme)
+                    data.themes.includes(theme.value)
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 text-gray-600'
                   }`}
                 >
-                  {theme}
+                  {theme.label}
                 </button>
               ))}
             </div>
@@ -1604,85 +1531,92 @@ export default function RegisterPartner() {
 
 - [ ] **Step 8: フロントをビルド**
 
-```bash
-docker compose exec app npm run build
-```
+Run: `docker compose exec app npm run build`
+Expected: ビルド成功（manifest.json 生成）。
 
-- [ ] **Step 9: コミット**
+- [ ] **Step 9: Pint・コミット**
 
 ```bash
-git add .
-git commit -m "feat(auth): add registration controllers using UseCase pattern with FormRequests"
+docker compose exec app ./vendor/bin/pint
+git add app/Http/ routes/auth.php resources/js/Pages/Auth/
+git commit -m "feat(auth): add member/partner registration via UseCase with FormRequests"
 ```
 
 ---
 
 ## Task 9: Feature Test — 登録フロー
 
-- [ ] **Step 1: `tests/Feature/Auth/RegisterSchoolTest.php` を作成（🔴）**
+**Files:**
+- Create: `tests/Feature/Auth/RegisterMemberTest.php`
+- Create: `tests/Feature/Auth/RegisterPartnerTest.php`
+
+- [ ] **Step 1: `tests/Feature/Auth/RegisterMemberTest.php`（🔴）**
 
 ```php
 <?php
 
+use App\Models\Member;
 use App\Models\User;
-use App\Models\School;
 
-it('日本校ユーザーが登録できる', function () {
-    $response = $this->post('/register/school', [
-        'email'                 => 'school@example.com',
+it('利用者（ご家庭）が登録できる', function () {
+    $response = $this->post('/register/member', [
+        'email'                 => 'family@example.com',
         'password'              => 'Password123!',
         'password_confirmation' => 'Password123!',
-        'name'                  => 'テスト小学校',
-        'type'                  => '学校',
+        'name'                  => '田中家',
+        'type'                  => 'family',
+        'org_name'              => null,
         'prefecture'            => '東京都',
         'contact_name'          => '田中太郎',
-        'grade_range'           => '小4-小6',
+        'grade_range'           => '小4〜6年',
     ]);
 
-    $response->assertRedirect('/school/dashboard');
+    $response->assertRedirect('/member/dashboard');
 
-    $user = User::where('email', 'school@example.com')->first();
+    $user = User::where('email', 'family@example.com')->first();
     expect($user)->not->toBeNull();
-    expect($user->role)->toBe('school');
-    expect(School::where('user_id', $user->id)->exists())->toBeTrue();
+    expect($user->role)->toBe('member');
+    expect(Member::where('user_id', $user->id)->where('type', 'family')->exists())->toBeTrue();
 });
 
 it('重複メールで登録するとバリデーションエラー', function () {
     User::factory()->create(['email' => 'dup@example.com']);
 
-    $response = $this->post('/register/school', [
+    $response = $this->post('/register/member', [
         'email'                 => 'dup@example.com',
         'password'              => 'Password123!',
         'password_confirmation' => 'Password123!',
-        'name'                  => 'テスト校',
-        'type'                  => '学校',
+        'name'                  => 'テスト塾',
+        'type'                  => 'cram_school',
+        'org_name'              => 'テスト塾',
         'prefecture'            => '東京都',
         'contact_name'          => '山田',
-        'grade_range'           => '小1-小3',
+        'grade_range'           => null,
     ]);
 
     $response->assertSessionHasErrors('email');
 });
 ```
 
-- [ ] **Step 2: `tests/Feature/Auth/RegisterPartnerTest.php` を作成（🔴）**
+- [ ] **Step 2: `tests/Feature/Auth/RegisterPartnerTest.php`（🔴）**
 
 ```php
 <?php
 
-use App\Models\User;
 use App\Models\Partner;
+use App\Models\User;
 
-it('海外校ユーザーがpendingステータスで登録される', function () {
+it('海外パートナーがpendingステータスで登録される', function () {
     $response = $this->post('/register/partner', [
         'email'                 => 'partner@example.com',
         'password'              => 'Password123!',
         'password_confirmation' => 'Password123!',
-        'school_name'           => 'Sunshine Elementary',
-        'country'               => 'Philippines',
-        'region'                => 'Manila',
+        'provider_type'         => 'overseas_school',
+        'display_name'          => 'Sunshine Elementary',
+        'country'               => 'ケニア',
+        'region'                => 'Nairobi',
         'contact_name'          => 'Maria Santos',
-        'themes'                => ['文化紹介', 'SDGs'],
+        'themes'                => ['culture', 'global'],
         'grade_range'           => 'Grade 4-6',
     ]);
 
@@ -1693,23 +1627,20 @@ it('海外校ユーザーがpendingステータスで登録される', function 
 
     $partner = Partner::where('user_id', $user->id)->first();
     expect($partner->status)->toBe('pending');
-    expect($partner->themes)->toContain('文化紹介');
+    expect($partner->themes)->toContain('culture');
 });
 ```
 
-- [ ] **Step 3: テスト実行（🟢 Green確認）**
+- [ ] **Step 3: テスト実行（🟢）**
 
-```bash
-docker compose exec app php artisan test tests/Feature/Auth/
-```
-
-Expected: `PASS` × 3（school登録・重複エラー・partner登録）
+Run: `docker compose exec app php artisan test tests/Feature/Auth/`
+Expected: `PASS` × 3（member登録・重複エラー・partner登録）
 
 - [ ] **Step 4: コミット**
 
 ```bash
 git add tests/Feature/
-git commit -m "test(feature): add school and partner registration feature tests (TDD)"
+git commit -m "test(feature): add member and partner registration feature tests (TDD)"
 ```
 
 ---
@@ -1718,14 +1649,13 @@ git commit -m "test(feature): add school and partner registration feature tests 
 
 **Files:**
 - Create: `database/seeders/AdminUserSeeder.php`
+- Modify: `database/seeders/DatabaseSeeder.php`
 
 - [ ] **Step 1: Seeder作成**
 
-```bash
-docker compose exec app php artisan make:seeder AdminUserSeeder
-```
+Run: `docker compose exec app php artisan make:seeder AdminUserSeeder`
 
-- [ ] **Step 2: `database/seeders/AdminUserSeeder.php` を編集**
+- [ ] **Step 2: `database/seeders/AdminUserSeeder.php` 編集**
 
 ```php
 <?php
@@ -1744,18 +1674,17 @@ class AdminUserSeeder extends Seeder
             ['email' => 'admin@worldclass.jp'],
             [
                 'name'     => 'WorldClass Admin',
-                'email'    => 'admin@worldclass.jp',
                 'password' => Hash::make('admin123456'),
                 'role'     => 'admin',
             ]
         );
 
-        $this->command->info('✅ Admin user: admin@worldclass.jp / admin123456');
+        $this->command->info('Admin user: admin@worldclass.jp / admin123456');
     }
 }
 ```
 
-- [ ] **Step 3: `database/seeders/DatabaseSeeder.php` に追記**
+- [ ] **Step 3: `database/seeders/DatabaseSeeder.php` に登録**
 
 ```php
 public function run(): void
@@ -1766,11 +1695,8 @@ public function run(): void
 
 - [ ] **Step 4: Seeder実行**
 
-```bash
-docker compose exec app php artisan db:seed
-```
-
-Expected: `✅ Admin user: admin@worldclass.jp / admin123456`
+Run: `docker compose exec app php artisan db:seed`
+Expected: `Admin user: admin@worldclass.jp / admin123456`
 
 - [ ] **Step 5: コミット**
 
@@ -1781,148 +1707,75 @@ git commit -m "feat(db): add admin user seeder"
 
 ---
 
-## Task 11: Filament海外校審査リソース
+## Task 11: Filament海外パートナー審査リソース
 
 **Files:**
-- Create: `app/Filament/Resources/PartnerResource.php`
+- Create: `app/Filament/Resources/PartnerResource.php` ほか（自動生成）
+
+> Filament v4 の生成物・名前空間は v3 と異なる場合がある。`--generate` 後の生成内容に合わせて以下を調整すること。
 
 - [ ] **Step 1: Filamentリソース作成**
 
-```bash
-docker compose exec app php artisan make:filament-resource Partner --generate
-```
+Run: `docker compose exec app php artisan make:filament-resource Partner --generate`
 
-- [ ] **Step 2: `app/Filament/Resources/PartnerResource.php` を編集**
+- [ ] **Step 2: フォーム/テーブルを審査用に編集**
 
-```php
-<?php
+`form()` に以下のフィールドを定義（Filament v4 のスキーマAPIに合わせる）：
+- `display_name`（label: 名称・required）
+- `provider_type`（Select・label: 提供者種別・options: overseas_school=海外校 / local_japanese=現地日本人）
+- `country`（label: 国・required） / `region`（label: 地域・required）
+- `contact_name`（label: 担当者名・required）
+- `video_url`（label: VTR URL・url）
+- `status`（Select・label: 審査ステータス・options: pending=審査中 / approved=承認 / suspended=停止 / rejected=不承認・required）
+- `themes`（CheckboxList・options: culture=文化交流 / english=英語学習 / global=国際理解）
+- `grade_range`（label: 対象学年・required）
+- `support_pool`（numeric・label: 物資支援プール(円)・disabled）
 
-namespace App\Filament\Resources;
+`table()` に以下のカラム：
+- `display_name`（searchable） / `provider_type` / `country`
+- `status`（バッジ: pending=warning / approved=success / suspended・rejected=danger）
+- `rating_score`（label: ★） / `penalty_count` / `support_pool`
 
-use App\Filament\Resources\PartnerResource\Pages;
-use App\Models\Partner;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-
-class PartnerResource extends Resource
-{
-    protected static ?string $model = Partner::class;
-    protected static ?string $navigationIcon = 'heroicon-o-building-library';
-    protected static ?string $navigationLabel = '海外校管理';
-
-    public static function form(Form $form): Form
-    {
-        return $form->schema([
-            Forms\Components\TextInput::make('school_name')->label('学校名')->required(),
-            Forms\Components\TextInput::make('country')->label('国')->required(),
-            Forms\Components\TextInput::make('region')->label('地域')->required(),
-            Forms\Components\TextInput::make('contact_name')->label('担当教師名')->required(),
-            Forms\Components\TextInput::make('video_url')->label('VTR URL')->url(),
-            Forms\Components\Select::make('status')
-                ->label('審査ステータス')
-                ->options([
-                    'pending'   => '審査中',
-                    'approved'  => '承認',
-                    'suspended' => '停止',
-                    'rejected'  => '不承認',
-                ])
-                ->required(),
-            Forms\Components\CheckboxList::make('themes')
-                ->label('対応テーマ')
-                ->options([
-                    '文化紹介' => '文化紹介',
-                    'SDGs'    => 'SDGs',
-                    '英語教育' => '英語教育',
-                ]),
-            Forms\Components\TextInput::make('grade_range')->label('対象学年')->required(),
-            Forms\Components\TextInput::make('support_pool')
-                ->label('物資支援プール（円）')
-                ->numeric()
-                ->disabled(),
-        ]);
-    }
-
-    public static function table(Table $table): Table
-    {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('school_name')->label('学校名')->searchable(),
-                Tables\Columns\TextColumn::make('country')->label('国'),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->label('ステータス')
-                    ->colors([
-                        'warning' => 'pending',
-                        'success' => 'approved',
-                        'danger'  => fn ($state) => in_array($state, ['suspended', 'rejected']),
-                    ]),
-                Tables\Columns\TextColumn::make('rating_score')->label('★'),
-                Tables\Columns\TextColumn::make('penalty_count')->label('ペナルティ'),
-                Tables\Columns\TextColumn::make('support_pool')->label('プール（円）'),
-            ])
-            ->filters([
-                Tables\Filters\SelectFilter::make('status')
-                    ->options([
-                        'pending'   => '審査中',
-                        'approved'  => '承認済み',
-                        'suspended' => '停止',
-                        'rejected'  => '不承認',
-                    ]),
-            ])
-            ->actions([Tables\Actions\EditAction::make()]);
-    }
-
-    public static function getPages(): array
-    {
-        return [
-            'index'  => Pages\ListPartners::route('/'),
-            'create' => Pages\CreatePartner::route('/create'),
-            'edit'   => Pages\EditPartner::route('/{record}/edit'),
-        ];
-    }
-}
-```
+`filters()` に `status` の SelectFilter（pending/approved/suspended/rejected）。
+`actions()` に EditAction。
 
 - [ ] **Step 3: 動作確認**
 
-`http://localhost/admin` → `admin@worldclass.jp / admin123456` でログイン  
-`http://localhost/admin/partners` → 海外校一覧表示・ステータス変更できる
+`http://localhost/admin` → `admin@worldclass.jp / admin123456` でログイン → Partners一覧でステータス変更ができる。
 
-- [ ] **Step 4: コミット**
+- [ ] **Step 4: Pint・Larastan・コミット**
 
 ```bash
+docker compose exec app ./vendor/bin/pint
+docker compose exec app ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
 git add app/Filament/
 git commit -m "feat(admin): add Filament partner review resource"
 ```
 
 ---
 
-## セルフレビュー
+## セルフレビュー（スペックカバレッジ）
 
-**スペックカバレッジ:**
-- ✅ カスタム Docker Compose（PHP 8.3 / Nginx / PostgreSQL 16 / Redis 7）
-- ✅ GitHub Actions CI（テスト + Pint）
-- ✅ クリーンアーキテクチャ骨格（Domain / UseCase / Infrastructure）
-- ✅ DIバインディング（AppServiceProvider）
-- ✅ TDD（Unit: UseCase、Feature: 登録フロー）
-- ✅ 3ロール認証（school / partner / admin）
-- ✅ FormRequest バリデーション（SchoolRequest / PartnerRequest）
+- ✅ 全DBスキーマ（members / partners / sessions / session_participants / support_requests / coupons）— DB設計書準拠
+- ✅ 3ロール認証（member / partner / admin）
+- ✅ 利用者5区分（MemberType enum）/ 提供者2区分（ProviderType enum）
+- ✅ セッション枠 + 参加グループ（専用/オープン両対応スキーマ）
+- ✅ テーマ enum（ThemeType: culture/english/global）
+- ✅ クリーンアーキ骨格（Domain / UseCase / Infrastructure）+ DIバインディング
+- ✅ TDD（Unit: UseCase / Feature: 登録フロー）
+- ✅ FormRequest バリデーション
 - ✅ Controller → UseCase → Repository の呼び出しチェーン
-- ✅ 全DBスキーマ（sessions / support_requests / coupons 含む）
-- ✅ Filament管理画面（海外校審査）
-- ✅ Conventional Commits（全コミット）
-- ⏭️ カタログ・予約 → Plan 2
-- ⏭️ Stripe決済 → Plan 2
-- ⏭️ 準備フロー・通知 → Plan 3
-- ⏭️ 物資支援管理 → Plan 4
-- ⏭️ 自治体ダッシュボード → Plan 5
+- ✅ Filament管理画面（海外パートナー審査・provider_type対応）
+- ✅ Conventional Commits
+- ⏭️ カタログ・予約ロジック・Stripe → Phase 2（`stripe_payment_id` 等のカラムは用意済み）
+- ⏭️ 準備フロー・自動キャンセル・通知 → Phase 3（`ready_checked_at` 等のカラムは用意済み）
+- ⏭️ 物資支援運用フロー → Phase 4
+- ⏭️ 自治体ダッシュボード → Phase 5
 
-**タスク実行順序:**
+## タスク実行順序
+
 ```
-Task 0（Docker）→ Task 1（Laravel）→ Task 2（Filament）
-→ Task 3（CI）→ Task 4（DB）→ Task 5（Clean Architecture骨格）
-→ Task 6（Unit Test）→ Task 7（Middleware）→ Task 8（Controller/UseCase）
+Task 4（DB）→ Task 5（Clean Arch骨格）→ Task 6（Unit Test）
+→ Task 7（Middleware）→ Task 8（Controller/UseCase/Form）
 → Task 9（Feature Test）→ Task 10（Seeder）→ Task 11（Filament Resource）
 ```
