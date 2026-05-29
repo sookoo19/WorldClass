@@ -1,58 +1,93 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# WorldClass
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+日本国内のご家庭・個人塾・サークル団体・公民館・図書館等と、発展途上国の学校や現地で活動する日本人をつなぐ、オンライン国際交流マッチングプラットフォーム。文化交流・英語学習・国際理解を1セッションで実現し、セッション料金の50%を現地の教育施設へ物資支援として還元する。
 
-## About Laravel
+**LP:** https://worldclassjp.netlify.app/
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 技術スタック
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| 区分 | 技術 |
+|---|---|
+| バックエンド | Laravel 13 |
+| 管理画面 | Filament v4 |
+| フロントエンド | Inertia.js + React + TypeScript |
+| DB | PostgreSQL 16 |
+| キャッシュ/Queue | Redis 7 |
+| 決済 | Stripe Checkout |
+| 環境 | Docker Compose（カスタム） |
+| テスト | Pest |
+| CI | GitHub Actions（test + Pint + Larastan level 5） |
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## アーキテクチャ
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+クリーンアーキテクチャを採用。依存の方向は外側→内側のみ。
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Http/Controllers → UseCases → Domain（Entities / Repositories Interface）
+                                   ↑
+                Infrastructure/Repositories（Eloquent実装）
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+詳細は [`CLAUDE.md`](CLAUDE.md) と [技術方針](docs/superpowers/specs/2026-05-25-worldclass-engineering-principles.md) を参照。
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## セットアップ
 
-## Code of Conduct
+```bash
+# 1. .env を用意
+cp .env.example .env
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# 2. コンテナ起動（BuildKit を無効化してビルド）
+DOCKER_BUILDKIT=0 docker compose build
+docker compose up -d
 
-## Security Vulnerabilities
+# 3. 依存インストール・アプリキー・マイグレーション
+docker compose exec app composer install
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate --seed
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# 4. フロントビルド
+docker compose exec app npm install
+docker compose exec app npm run build
+```
 
-## License
+アクセス: http://localhost  ／  管理画面: http://localhost/admin
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## 開発コマンド
+
+```bash
+docker compose exec app php artisan test          # テスト
+docker compose exec app ./vendor/bin/pint         # コード整形
+docker compose exec app ./vendor/bin/phpstan analyse   # 静的解析
+docker compose exec app npm run dev               # フロント開発サーバ
+```
+
+---
+
+## ドキュメント
+
+| ドキュメント | パス |
+|---|---|
+| サービス設計書 | `docs/superpowers/specs/2026-05-23-worldclass-design.md` |
+| DB設計書 | `docs/superpowers/specs/2026-05-29-worldclass-db-design.md` |
+| ER図（draw.io） | `docs/superpowers/specs/2026-05-29-worldclass-db-er.drawio` |
+| 技術方針 | `docs/superpowers/specs/2026-05-25-worldclass-engineering-principles.md` |
+| Phase 1 プラン | `docs/superpowers/plans/2026-05-23-worldclass-plan1-foundation-laravel.md` |
+| Phase 2 プラン | `docs/superpowers/plans/2026-05-24-worldclass-phase2-catalog-booking-stripe.md` |
+
+---
+
+## 実装フェーズ
+
+| フェーズ | 内容 |
+|---|---|
+| Phase 1 | 認証・DB基盤・クリーンアーキ骨格 |
+| Phase 2 | カタログ・予約・Stripe決済 |
+| Phase 3〜5 | 準備フロー・物資支援・自治体ダッシュボード |

@@ -6,9 +6,10 @@ AIエージェント向けのプロジェクト規約。実装前に必ず読む
 
 ## プロジェクト概要
 
-日本の学校・公民館・塾と発展途上国の学校をつなぐ、オンライン国際交流マッチングプラットフォーム。
+日本国内のご家庭・個人塾・サークル団体・公民館・図書館等と、発展途上国の学校や現地で活動する日本人をつなぐ、オンライン国際交流マッチングプラットフォーム。文化交流・英語学習・国際理解を1セッションで実現し、料金の50%を現地の教育施設へ物資支援として還元する。
 
 **設計書:** `docs/superpowers/specs/2026-05-23-worldclass-design.md`  
+**DB設計:** `docs/superpowers/specs/2026-05-29-worldclass-db-design.md`（ER図: `2026-05-29-worldclass-db-er.drawio`）  
 **技術方針:** `docs/superpowers/specs/2026-05-25-worldclass-engineering-principles.md`
 
 ---
@@ -54,20 +55,20 @@ Http/Controllers → UseCases → Domain（Entities / Repositories Interface）
 
 ```php
 // ✅ Good
-public function store(RegisterSchoolRequest $request): RedirectResponse
+public function store(RegisterMemberRequest $request): RedirectResponse
 {
-    $output = $this->registerSchoolUseCase->execute(
-        new RegisterSchoolInput(/* $request から詰める */)
+    $output = $this->registerMemberUseCase->execute(
+        new RegisterMemberInput(/* $request から詰める */)
     );
     Auth::login($output->user);
-    return redirect()->route('school.dashboard');
+    return redirect()->route('member.dashboard');
 }
 
 // ❌ Bad（ビジネスロジックをControllerに書かない）
 public function store(Request $request): RedirectResponse
 {
     $user = User::create([...]);
-    $user->school()->create([...]);
+    $user->member()->create([...]);
     ...
 }
 ```

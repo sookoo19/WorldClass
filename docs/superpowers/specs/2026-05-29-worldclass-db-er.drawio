@@ -1,0 +1,122 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="WorldClass ER" id="worldclass-er">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== users ===================== -->
+        <mxCell id="users" value="users（認証）" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#dae8fc;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="540" y="40" width="240" height="198" as="geometry" />
+        </mxCell>
+        <mxCell id="users_id" value="id　PK" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="users"><mxGeometry y="30" width="240" height="24" as="geometry" /></mxCell>
+        <mxCell id="users_name" value="name" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="users"><mxGeometry y="54" width="240" height="24" as="geometry" /></mxCell>
+        <mxCell id="users_email" value="email　unique" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="users"><mxGeometry y="78" width="240" height="24" as="geometry" /></mxCell>
+        <mxCell id="users_role" value="role　enum(member/partner/admin)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="users"><mxGeometry y="102" width="240" height="24" as="geometry" /></mxCell>
+        <mxCell id="users_pw" value="password" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="users"><mxGeometry y="126" width="240" height="24" as="geometry" /></mxCell>
+        <mxCell id="users_ev" value="email_verified_at" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="users"><mxGeometry y="150" width="240" height="24" as="geometry" /></mxCell>
+        <mxCell id="users_ts" value="timestamps" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;fontStyle=2;" vertex="1" parent="users"><mxGeometry y="174" width="240" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== members ===================== -->
+        <mxCell id="members" value="members（日本側利用者）" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#d5e8d4;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="360" width="260" height="198" as="geometry" />
+        </mxCell>
+        <mxCell id="members_id" value="id　PK" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="members"><mxGeometry y="30" width="260" height="24" as="geometry" /></mxCell>
+        <mxCell id="members_uid" value="user_id　FK→users" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="members"><mxGeometry y="54" width="260" height="24" as="geometry" /></mxCell>
+        <mxCell id="members_type" value="type　enum(family/cram_school/circle/public_facility/other)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=10;" vertex="1" parent="members"><mxGeometry y="78" width="260" height="24" as="geometry" /></mxCell>
+        <mxCell id="members_org" value="org_name　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="members"><mxGeometry y="102" width="260" height="24" as="geometry" /></mxCell>
+        <mxCell id="members_pref" value="prefecture" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="members"><mxGeometry y="126" width="260" height="24" as="geometry" /></mxCell>
+        <mxCell id="members_contact" value="contact_name" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="members"><mxGeometry y="150" width="260" height="24" as="geometry" /></mxCell>
+        <mxCell id="members_grade" value="grade_range　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="members"><mxGeometry y="174" width="260" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== partners ===================== -->
+        <mxCell id="partners" value="partners（海外側提供者）" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffe6cc;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="940" y="320" width="280" height="366" as="geometry" />
+        </mxCell>
+        <mxCell id="partners_id" value="id　PK" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="30" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_uid" value="user_id　FK→users" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="54" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_ptype" value="provider_type　enum(overseas_school/local_japanese)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=10;" vertex="1" parent="partners"><mxGeometry y="78" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_dname" value="display_name" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="102" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_country" value="country" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="126" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_region" value="region" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="150" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_contact" value="contact_name" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="174" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_video" value="video_url　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="198" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_status" value="status　enum(pending/approved/suspended/rejected)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=10;" vertex="1" parent="partners"><mxGeometry y="222" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_rating" value="rating_score　decimal(3,2)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="246" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_penalty" value="penalty_count" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="270" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_pool" value="support_pool　物資支援プール(円)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="294" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_themes" value="themes　json" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="318" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="partners_grade" value="grade_range" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="partners"><mxGeometry y="342" width="280" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== sessions ===================== -->
+        <mxCell id="sessions" value="sessions（セッション枠）" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffe6cc;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="940" y="780" width="280" height="342" as="geometry" />
+        </mxCell>
+        <mxCell id="sessions_id" value="id　PK" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="30" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_pid" value="partner_id　FK→partners" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="54" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_stype" value="session_type　enum(private/open)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="78" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_sched" value="scheduled_at" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="102" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_dur" value="duration_min　45/60" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="126" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_theme" value="theme" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="150" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_cap" value="capacity　専用=1/オープン=N" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="174" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_min" value="min_groups　成立最低数" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="198" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_fac" value="with_facilitator　bool" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="222" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_price" value="price_jpy　1グループあたり" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="246" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_status" value="status　enum(draft/open/.../cancelled)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=10;" vertex="1" parent="sessions"><mxGeometry y="270" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_ready" value="ready_checked_at　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="294" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="sessions_cancel" value="cancelled_at　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="sessions"><mxGeometry y="318" width="280" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== session_participants ===================== -->
+        <mxCell id="parts" value="session_participants（参加グループ）" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#fff2cc;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="480" y="600" width="300" height="318" as="geometry" />
+        </mxCell>
+        <mxCell id="parts_id" value="id　PK" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="30" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_sid" value="session_id　FK→sessions" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="54" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_mid" value="member_id　FK→members" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="78" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_status" value="status　enum(pending/confirmed/cancelled)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=10;" vertex="1" parent="parts"><mxGeometry y="102" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_stripe" value="stripe_payment_id　nullable (Phase2)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="126" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_price" value="price_paid" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="150" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_support" value="support_amount　price_paidの50%" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="174" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_q" value="question_list　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="198" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_qsent" value="question_list_sent_at　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="222" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_rating" value="rating_score　★1-5 nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="246" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_rcomment" value="rating_comment　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="270" width="300" height="24" as="geometry" /></mxCell>
+        <mxCell id="parts_cancel" value="cancelled_at　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="parts"><mxGeometry y="294" width="300" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== support_requests ===================== -->
+        <mxCell id="support" value="support_requests（物資支援）" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffe6cc;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="360" width="280" height="198" as="geometry" />
+        </mxCell>
+        <mxCell id="support_id" value="id　PK" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="support"><mxGeometry y="30" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="support_pid" value="partner_id　FK→partners" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="support"><mxGeometry y="54" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="support_items" value="item_list　json [{name,quantity}]" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="support"><mxGeometry y="78" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="support_total" value="total_amount_jpy" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="support"><mxGeometry y="102" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="support_status" value="status　enum(pending/shipped/delivered)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=10;" vertex="1" parent="support"><mxGeometry y="126" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="support_receipt" value="receipt_photo_url　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="support"><mxGeometry y="150" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="support_deliv" value="delivered_at　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="support"><mxGeometry y="174" width="280" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== coupons ===================== -->
+        <mxCell id="coupons" value="coupons（クーポン）" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#d5e8d4;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="660" width="280" height="198" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons_id" value="id　PK" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="coupons"><mxGeometry y="30" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="coupons_mid" value="member_id　FK→members" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="coupons"><mxGeometry y="54" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="coupons_pct" value="discount_pct" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="coupons"><mxGeometry y="78" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="coupons_reason" value="reason　enum(early_bird/auto_cancel)" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=10;" vertex="1" parent="coupons"><mxGeometry y="102" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="coupons_code" value="code　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="coupons"><mxGeometry y="126" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="coupons_used" value="used_at　nullable" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="coupons"><mxGeometry y="150" width="280" height="24" as="geometry" /></mxCell>
+        <mxCell id="coupons_exp" value="expires_at" style="text;align=left;verticalAlign=middle;spacingLeft=8;fontSize=11;" vertex="1" parent="coupons"><mxGeometry y="174" width="280" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== relations ===================== -->
+        <mxCell id="rel_users_members" style="edgeStyle=entityRelationEdgeStyle;rounded=0;html=1;endArrow=ERmany;startArrow=ERone;fontSize=12;" edge="1" parent="1" source="users" target="members"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_users_partners" style="edgeStyle=entityRelationEdgeStyle;rounded=0;html=1;endArrow=ERmany;startArrow=ERone;fontSize=12;" edge="1" parent="1" source="users" target="partners"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_members_parts" style="edgeStyle=entityRelationEdgeStyle;rounded=0;html=1;endArrow=ERmany;startArrow=ERone;fontSize=12;" edge="1" parent="1" source="members" target="parts"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_members_coupons" style="edgeStyle=entityRelationEdgeStyle;rounded=0;html=1;endArrow=ERmany;startArrow=ERone;fontSize=12;" edge="1" parent="1" source="members" target="coupons"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_partners_sessions" style="edgeStyle=entityRelationEdgeStyle;rounded=0;html=1;endArrow=ERmany;startArrow=ERone;fontSize=12;" edge="1" parent="1" source="partners" target="sessions"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_partners_support" style="edgeStyle=entityRelationEdgeStyle;rounded=0;html=1;endArrow=ERmany;startArrow=ERone;fontSize=12;" edge="1" parent="1" source="partners" target="support"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_sessions_parts" style="edgeStyle=entityRelationEdgeStyle;rounded=0;html=1;endArrow=ERmany;startArrow=ERone;fontSize=12;" edge="1" parent="1" source="sessions" target="parts"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
