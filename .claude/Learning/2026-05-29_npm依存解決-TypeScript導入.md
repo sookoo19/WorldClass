@@ -119,7 +119,140 @@ docker compose exec app npm run build   # ← コンテナ内で実行
 
 ## 次回への課題・疑問点
 
-- [ ] Task 2: Filament v3 インストール（`composer require filament/filament:"^3.2" -W`）
+- [x] Task 2: Filament v4 インストール完了（v3 は Laravel 13 非対応だったため v4 を採用）
 - [ ] `tsconfig.json` の `@/*` エイリアスが vite でも動くか確認（`vite.config.js` の `resolve.alias` と合わせる必要あり）
-- [ ] Larastan は Task 3（CI 構築時）に level 5 で導入予定
-- [ ] `npm run build` 成功は確認済み。`http://localhost` でページが表示されるか確認
+- [x] Larastan level 5 導入完了（Task 3 CI 構築時）
+- [ ] `http://localhost` でページが表示されるか確認（管理画面 `/admin` は表示確認済み）
+
+---
+
+# Filament v4 インストール・GitHub Actions CI・Larastan
+
+**日付**: 2026-05-29
+**会話の概要**: Filament のインストールで複数のエラーを解決しながら v4 を導入し、GitHub Actions CI と Larastan level 5 による静的解析を設定した。
+
+---
+
+## 今日学んだ概念
+
+### Composer の セキュリティ advisory ブロック
+- **何か**: Composer が「脆弱性が報告されているパッケージバージョン」のインストールを自動で拒否する機能
+- **なぜ必要か**: 既知のセキュリティ問題があるバージョンを誤って使うのを防ぐ
+- **今回の例**: `filament/actions` の古いバージョン（v3.2.0〜v3.2.122）に脆弱性 `PKSA-1ds2-yqqr-64g1` が報告されており、Composer がインストールを拒否した
+
+### Filament v3 と Laravel 13 の非互換
+- **何か**: Filament v3 は Laravel 10/11 にしか対応していない。Laravel 13 には Filament v4 が必要
+- **なぜ問題か**: Filament v3 の内部は `illuminate/view ^10.45|^11.0` を要求しており、Laravel 13 の `illuminate/view ^13.x` と共存できない
+- **教訓**: パッケージを選ぶとき「どの Laravel バージョンに対応しているか」を必ず確認する。対応表は各パッケージの README や packagist.org で確認できる
+
+### PHP 拡張（ext-intl）
+- **何か**: PHP の国際化（多言語対応）機能を提供する拡張モジュール。文字列の並び替え・通貨フォーマット・ロケール処理などに使われる
+- **なぜ必要か**: Filament v4 が内部で使用している。Docker コンテナの PHP イメージにはデフォルトで入っていないため、Dockerfile に追加してリビルドが必要だった
+- **インストール方法**: `libicu-dev`（ICU ライブラリ）を apt でインストール後、`docker-php-ext-install intl` で有効化
+
+### GitHub Actions CI（継続的インテグレーション）
+- **何か**: コードを push するたびに「テスト・静的解析・コードスタイルチェック」を自動で実行するしくみ
+- **なぜ必要か**: 人間が手動でチェックを忘れてもコンピュータが自動で検知してくれる。チーム開発で「壊れたコードを main に入れてしまう」リスクを減らす
+- **例え**: 工場の品質検査ライン。製品（コード）が出荷（main マージ）される前に自動で検査される
+
+### PHPStan / Larastan の level
+- **何か**: 静的解析の厳しさを 0〜10 の数値で指定する設定
+- **level 5 の意味**: `null` かもしれない値を無検査で使うとエラー。例: `User::find(1)` は `User|null` を返すので、null チェックなしに `->name` を使うと怒られる
+- **なぜ level 5 か**: 0〜4 は緩すぎて実用的なバグを検出できない。6〜10 は Laravel/Filament の内部コードで偽陽性（誤検知）が大量に出る。5 がバランスの良い出発点
+
+### PHPDoc 型アサーション（`@var`）
+- **何か**: PHPDoc コメントで「この変数はこの型だ」と静的解析ツールに教える記法
+- **なぜ必要か**: PHPStan は `$request->user()` が `User|null` を返すと判断する。しかし `EmailVerificationRequest` は認証済みユーザーしかアクセスできないため、実際には null にならない。この「実装上の保証」を PHPDoc で明示することで誤検知を解消する
+
+---
+
+## 書いたコード
+
+### Dockerfile への ext-intl 追加
+
+```dockerfile
+RUN apt-get update && apt-get install -y \
+    git curl zip unzip libpq-dev libzip-dev libicu-dev \
+    && docker-php-ext-install pdo pdo_pgsql zip bcmath intl \
+    && pecl install redis && docker-php-ext-enable redis
+```
+
+**ポイント解説:**
+- `libicu-dev`: ICU ライブラリのヘッダファイル。intl 拡張のコンパイルに必要
+- `docker-php-ext-install intl`: PHP の intl 拡張を有効化する公式ヘルパーコマンド
+- Dockerfile を変更したら `DOCKER_BUILDKIT=0 docker compose build app` でリビルド必要
+
+### phpstan.neon（Larastan 設定）
+
+```neon
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+
+    excludePaths:
+        - app/Providers/Filament/AdminPanelProvider.php
+```
+
+**ポイント解説:**
+- `includes`: Larastan の Laravel 専用ルールを読み込む（Eloquent や Facade を理解させる）
+- `level: 5`: null 安全チェックを含む中程度の厳しさ
+- `excludePaths`: Filament が自動生成したファイルは解析対象から除外（自動生成コードは型が不完全なことがある）
+
+### GitHub Actions ワークフロー（抜粋）
+
+```yaml
+jobs:
+  larastan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo, pdo_pgsql, zip, bcmath, intl
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Run Larastan
+        run: ./vendor/bin/phpstan analyse --no-progress
+```
+
+**ポイント解説:**
+- `runs-on: ubuntu-latest`: GitHub のサーバー（Linux）でジョブを実行
+- `uses: shivammathur/setup-php@v2`: PHP のセットアップを簡単にやってくれる公式アクション
+- `--no-progress`: CI では進捗バーを出力しない（ログが見やすくなる）
+
+### PHPDoc 型アサーション（VerifyEmailController）
+
+```php
+/** @var \App\Models\User&\Illuminate\Contracts\Auth\MustVerifyEmail $user */
+$user = $request->user();
+```
+
+**ポイント解説:**
+- `User&MustVerifyEmail`: 「User であり、かつ MustVerifyEmail インターフェースも実装している」という交差型（intersection type）を PHPDoc で表現
+- 実行時の動作は変わらない。あくまで静的解析ツールへの「ヒント」
+- `$request->user()` は認証済みリクエストなので実際に null にはならないが、型定義上は `User|null` のため明示が必要
+
+---
+
+## なぜそう書くか（設計の理由）
+
+- **Filament v4 を選んだ理由**: v3 は Laravel 10/11 のみ対応。このプロジェクトは Laravel 13 なので v4 一択。v4 は v3 と同じコンセプト（Panel, Resource）を持つため移行コストは低い
+
+- **CI に 3 つのジョブを分けた理由**: test・larastan・pint を独立したジョブにすることで、どこで失敗したか一目でわかる。また並列実行されるため全体の所要時間が短縮される
+
+- **AdminPanelProvider を excludePaths にした理由**: Filament が自動生成するコードは型アノテーションが不完全で偽陽性が出やすい。自分たちが書いたコードの品質向上が目的なので、フレームワーク生成コードは除外が合理的
+
+---
+
+## 次回への課題・疑問点
+
+- [ ] Task 4: DB マイグレーション（schools, partners, sessions, support_requests テーブル作成）
+- [ ] Task 5: クリーンアーキテクチャ骨格（Domain / UseCase / Infrastructure ディレクトリ）
+- [ ] GitHub Actions で CI が実際に動くか確認（push してみる）
+- [ ] `phpstan.neon` の `--memory-limit=512M` を CI の `phpstan analyse` コマンドにも追加すべきか検討

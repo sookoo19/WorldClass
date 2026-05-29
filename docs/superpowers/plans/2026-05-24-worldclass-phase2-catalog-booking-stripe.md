@@ -10,6 +10,28 @@
 
 ---
 
+> ## ⚠️ 未整合の警告（2026-05-29 追記）
+>
+> **このプランは旧DB設計（`schools` / `Session`を予約レコードとして直接利用）で書かれており、Phase1で確定した新DB設計と全面的に矛盾している。Phase2着手時（Phase1完了後）に下表に従って全コード例を書き直すこと。** 新設計の正は [`../specs/2026-05-29-worldclass-db-design.md`](../specs/2026-05-29-worldclass-db-design.md)。
+>
+> **不整合マップ（旧→新）:**
+>
+> | 旧プランの記述 | 新設計での扱い |
+> |---|---|
+> | `School` モデル / `school_id` / role `school` / `school.dashboard` | `Member` / `member_id` / role `member` / `member.dashboard` |
+> | `SchoolFactory` | `MemberFactory`（`type` 必須: family/cram_school/circle/public_facility/other） |
+> | `Session` を予約1件として直接 `create`（`school_id`・`question_list`・`price_jpy`・`support_amount`・`stripe_payment_id`・`status pending/confirmed` を保持） | **二層化**: `sessions`（枠: `session_type=private`・`capacity=1`・`partner_id`・`scheduled_at`・`price_jpy`・`status`）＋ **`session_participants`**（参加グループ: `member_id`・`question_list`・`price_paid`・`support_amount`・`stripe_payment_id`・`status pending/confirmed/cancelled`）。**決済・質問・返金は `session_participants` 側に紐づく** |
+> | テーマ `文化紹介` / `SDGs` / `英語教育` | `ThemeType` enum: `culture`（文化交流）/ `english`（英語学習）/ `global`（国際理解） |
+> | `partner.school_name` | `partner.display_name` |
+> | Coupon `school_id` / 自由文字列 `reason` | `member_id` / `reason` enum（`early_bird` / `auto_cancel`） |
+> | `Partner.factory()->create(['country' => 'Philippines'])` 等の例示国 | 新対象国（ケニア・ブータン・モロッコ・東ティモール・ガーナ・チュニジア） |
+>
+> **影響を受ける主なコンポーネント:** SlotService（確定予約の衝突判定は `sessions`枠 + `session_participants.status` を考慮）、BookingController（Session枠生成 + Participant作成の2段）、StripeService（`display_name` 参照・metadataに participant_id）、WebhookController（confirmedにするのは participant）、ProcessCancellation（返金・クーポンは participant/member 基準）。
+>
+> ※ オープンセッション（相乗り・グループ単位・min_groups成立）は本Phase2の旧スコープに無い。新設計では対応済みのため、Phase2再設計時にオープンセッション予約フローを含めるか要検討。
+
+---
+
 ## ファイル構成
 
 **新規作成:**
