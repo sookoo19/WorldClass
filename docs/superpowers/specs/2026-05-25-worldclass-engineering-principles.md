@@ -9,8 +9,8 @@
 
 | 区分 | 採用技術 | 理由 |
 |---|---|---|
-| バックエンド | Laravel 11 | PHP安定・Filament管理画面が強力 |
-| 管理画面 | Filament v3 | 海外校審査・物資管理を最速で構築 |
+| バックエンド | Laravel 13 | PHP安定・Filament管理画面が強力 |
+| 管理画面 | Filament v4 | 海外校審査・物資管理を最速で構築 |
 | フロントエンド | Inertia.js + React | SPA的UX、APIレス |
 | DB | PostgreSQL | リレーション・トランザクション重視 |
 | キャッシュ/Queue | Redis | ジョブキュー（キャンセル処理等） |

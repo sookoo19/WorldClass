@@ -10,4 +10,7 @@ export default defineConfig({
         }),
         react(),
     ],
+    resolve: {
+        extensions: ['.tsx', '.ts', '.jsx', '.js'],
+    },
 });

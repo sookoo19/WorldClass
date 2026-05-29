@@ -17,8 +17,8 @@ AIエージェント向けのプロジェクト規約。実装前に必ず読む
 
 | 区分 | 技術 |
 |---|---|
-| バックエンド | Laravel 11 |
-| 管理画面 | Filament v3 |
+| バックエンド | Laravel 13 |
+| 管理画面 | Filament v4 |
 | フロントエンド | Inertia.js + React + TypeScript |
 | DB | PostgreSQL 16 |
 | キャッシュ/Queue | Redis 7 |

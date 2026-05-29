@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Laravel 11 + Inertia.js + React + Filament + カスタムDockerで基盤を構築し、3ロール（日本校・海外校・管理者）の認証・DBマイグレーション・クリーンアーキテクチャ骨格を完成させる。
+**Goal:** Laravel 13 + Inertia.js + React + TypeScript + Filament + カスタムDockerで基盤を構築し、3ロール（日本校・海外校・管理者）の認証・DBマイグレーション・クリーンアーキテクチャ骨格を完成させる。
 
-**Architecture:** クリーンアーキテクチャ（Domain / UseCase / Infrastructure / Http）。フロントはInertia.js + React。管理画面はFilament v3。
+**Architecture:** クリーンアーキテクチャ（Domain / UseCase / Infrastructure / Http）。フロントはInertia.js + React。管理画面はFilament v4。
 
-**Tech Stack:** Laravel 11, Inertia.js, React, Filament v3, PostgreSQL 16, Redis 7, Nginx, Docker Compose, Pest（TDD）
+**Tech Stack:** Laravel 13, Inertia.js, React, TypeScript, Filament v4, PostgreSQL 16, Redis 7, Nginx, Docker Compose, Pest（TDD）
 
 **Engineering Principles:** → [`engineering-principles.md`](../specs/2026-05-25-worldclass-engineering-principles.md)
 
@@ -309,12 +309,12 @@ docker compose exec app php artisan pest:install
 
 ```bash
 git add .
-git commit -m "feat: initialize Laravel 11 + Inertia.js + React + Pest"
+git commit -m "feat: initialize Laravel 13 + Inertia.js + React + Pest"
 ```
 
 ---
 
-## Task 2: Filament v3インストール（管理画面）
+## Task 2: Filament v4インストール（管理画面）
 
 **Files:**
 - Modify: `app/Models/User.php`
@@ -384,7 +384,7 @@ class User extends Authenticatable implements FilamentUser
 
 ```bash
 git add .
-git commit -m "feat(admin): install Filament v3 admin panel"
+git commit -m "feat(admin): install Filament v4 admin panel"
 ```
 
 ---

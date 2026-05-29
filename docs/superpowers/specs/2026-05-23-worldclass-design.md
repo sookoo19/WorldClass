@@ -282,7 +282,7 @@
 
 | 項目               | 決定内容                                                        |
 | ------------------ | --------------------------------------------------------------- |
-| **バックエンド**   | Laravel 11 + Filament v3（管理画面）                            |
+| **バックエンド**   | Laravel 13 + Filament v4（管理画面）                            |
 | **フロント**       | Inertia.js + React（SPA的UX、API不要）                          |
 | **アーキテクチャ** | フルレイヤー分離（Domain / UseCase / Repository / Controller）  |
 | **Docker**         | カスタム Docker Compose（PHP 8.3 + Nginx + PostgreSQL + Redis） |
