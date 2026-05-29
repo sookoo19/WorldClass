@@ -6,7 +6,7 @@
 
 **Architecture:** LaravelモノリスにServiceレイヤー（SlotService, StripeService）を追加。フロントはInertia.js + React。Stripe Checkout（ホステッドページへリダイレクト）でPCI scopeを最小化。予約確定はWebhookで行い、ブラウザ離脱による取りこぼしを防ぐ。
 
-**Tech Stack:** Laravel 11, Inertia.js, React + TypeScript, Stripe PHP SDK (`stripe/stripe-php`), PostgreSQL, Laravel Queue（DB driver）
+**Tech Stack:** Laravel 13, Inertia.js, React + TypeScript, Stripe PHP SDK (`stripe/stripe-php`), PostgreSQL, Laravel Queue（DB driver）
 
 ---
 
