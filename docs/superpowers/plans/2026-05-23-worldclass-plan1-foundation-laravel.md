@@ -23,7 +23,7 @@
 | Task 1 | Laravel 13 + Inertia + React + Pest | ✅ 完了（Breezeは現状 .jsx。新規ページは .tsx で追加・漸進移行） |
 | Task 2 | Filament v4 管理画面 | ✅ 完了（v3はLaravel13非対応のためv4。ext-intl必須でDockerfileに`libicu-dev`+`intl`追加済み） |
 | Task 3 | GitHub Actions CI（test + larastan level5 + pint） | ✅ 完了（CI green確認済み） |
-| Task 4 | DBマイグレーション（新設計・全6テーブル） | ⏭️ **次はここ** |
+| Task 4 | DBマイグレーション（新設計・全6テーブル） | 🔄 進行中（4-0・4-1完了、4-2〜4-7未着手） |
 | Task 5 | クリーンアーキ骨格（Domain/UseCase/Infrastructure） | ⬜ |
 | Task 6 | TDD UseCaseユニットテスト | ⬜ |
 | Task 7 | ロール保護ミドルウェア | ⬜ |
@@ -32,7 +32,7 @@
 | Task 10 | AdminUserSeeder | ⬜ |
 | Task 11 | Filament PartnerResource（審査画面） | ⬜ |
 
-> Task 0〜3 の実装手順は完了済みのため割愛。詳細はgit履歴（`edc1d1c` Filament / `dc477a6`・`544d642` CI）を参照。
+> Task 0〜3 の実装手順は完了済みのため割愛。詳細はgit履歴（`edc1d1c` Filament / `dc477a6`・`544d642` CI）を参照。Task 4-0（SESSION_DRIVER=redis・sessionsテーブル削除）・Task 4-1（usersにrole追加・PostgreSQL切替）完了（2026-06-06）。
 
 ---
 
