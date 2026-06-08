@@ -166,7 +166,7 @@ Laravel Breeze 標準の `users` に `role` を追加する。
 
 承認時、`approved_amount_jpy` を `partners.support_pool` から減算する（UseCase層で実装。Phase1はスキーマのみ）。
 
-### 4.6.1 support_item_catalog（支援対象品目マスタ）
+### 4.6.1 support_item_catalogs（支援対象品目マスタ）
 
 > 申請品目が支援対象として該当するかを判定するための参照マスタ。**価格情報は持たない**——現地物価差が大きく、固定の参考価格（例: 円換算の基準額）をDBに持たせると誤った審査基準を機械的に作ってしまうため。金額の妥当性は領収書の実額と、審査担当者の現地相場理解（`partners.country` から得られる文脈）に委ねる。マスタは「品目としてカテゴリ的に対象か」の判定に純化する。
 
@@ -206,7 +206,7 @@ partners (1) ──── (N) sessions
 partners (1) ──── (N) support_requests
 sessions (1) ──── (N) session_participants
 
-support_item_catalog は他テーブルとFK関係を持たない参照マスタ（審査時の目視照合用）
+support_item_catalogs は他テーブルとFK関係を持たない参照マスタ（審査時の目視照合用）
 ```
 
 - `users.role = member` のとき `members` を1件持つ。

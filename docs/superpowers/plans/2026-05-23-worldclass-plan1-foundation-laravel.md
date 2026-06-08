@@ -435,7 +435,7 @@ class SessionParticipant extends Model
 }
 ```
 
-### 4-6: support_requests / support_item_catalogテーブル（物資支援）
+### 4-6: support_requests / support_item_catalogsテーブル（物資支援）
 
 > **⚠️ 仕様変更（2026-06-08）:** 「カタログ選択→WorldClass発送」方式から「自己購入→領収書提出→照合→送金」方式に変更。設計詳細は `docs/superpowers/specs/2026-05-29-worldclass-db-design.md` 4.6/4.6.1 参照。
 
@@ -494,12 +494,12 @@ class SupportRequest extends Model
 }
 ```
 
-- [ ] **Step 4: support_item_catalog マイグレーション編集**
+- [ ] **Step 4: support_item_catalogs マイグレーション編集**
 
 > 価格情報は持たない（現地物価差が大きく、固定参考価格は誤った審査基準を作るため）。「品目として支援対象に該当するか」のカテゴリ判定に純化する。
 
 ```php
-Schema::create('support_item_catalog', function (Blueprint $table) {
+Schema::create('support_item_catalogs', function (Blueprint $table) {
     $table->id();
     $table->string('name');                       // 品目名（例: ノート、サッカーボール）
     $table->string('category')->nullable();       // 分類（文房具/教材/スポーツ用品 等）
@@ -587,7 +587,7 @@ Expected: 全テーブルが `DONE` 表示。
 - [ ] **Step 2: テーブル確認**
 
 Run: `docker compose exec app php artisan db:show --counts`
-Expected: members / partners / sessions / session_participants / support_requests / support_item_catalog / coupons / users が並ぶ。
+Expected: members / partners / sessions / session_participants / support_requests / support_item_catalogs / coupons / users が並ぶ。
 
 - [ ] **Step 3: Larastan・Pint チェック**
 
@@ -1801,7 +1801,7 @@ git commit -m "feat(admin): add Filament partner review resource"
 
 ## セルフレビュー（スペックカバレッジ）
 
-- ✅ 全DBスキーマ（members / partners / sessions / session_participants / support_requests / support_item_catalog / coupons）— DB設計書準拠
+- ✅ 全DBスキーマ（members / partners / sessions / session_participants / support_requests / support_item_catalogs / coupons）— DB設計書準拠
 - ✅ 3ロール認証（member / partner / admin）
 - ✅ 利用者5区分（MemberType enum）/ 提供者2区分（ProviderType enum）
 - ✅ セッション枠 + 参加グループ（専用/オープン両対応スキーマ）
