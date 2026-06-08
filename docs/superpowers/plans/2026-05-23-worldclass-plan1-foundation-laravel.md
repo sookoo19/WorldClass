@@ -23,8 +23,8 @@
 | Task 1 | Laravel 13 + Inertia + React + Pest | ✅ 完了（Breezeは現状 .jsx。新規ページは .tsx で追加・漸進移行） |
 | Task 2 | Filament v4 管理画面 | ✅ 完了（v3はLaravel13非対応のためv4。ext-intl必須でDockerfileに`libicu-dev`+`intl`追加済み） |
 | Task 3 | GitHub Actions CI（test + larastan level5 + pint） | ✅ 完了（CI green確認済み） |
-| Task 4 | DBマイグレーション（新設計・全7テーブル） | 🔄 進行中（4-0〜4-5完了、4-6〜4-8残） |
-| Task 5 | クリーンアーキ骨格（Domain/UseCase/Infrastructure） | ⬜ |
+| Task 4 | DBマイグレーション（新設計・全7テーブル） | ✅ 完了（全7テーブル、マイグレーション適用済み） |
+| Task 5 | クリーンアーキ骨格（Domain/UseCase/Infrastructure） | ✅ 完了（テスト25件pass・Larastan通過） |
 | Task 6 | TDD UseCaseユニットテスト | ⬜ |
 | Task 7 | ロール保護ミドルウェア | ⬜ |
 | Task 8 | 登録フォーム（Controller→UseCase, .tsx） | ⬜ |
@@ -119,24 +119,24 @@ worldclass/
 
 `app/Models/Session.php`（交流セッション）と、Laravelの認証セッション格納テーブル `sessions` が衝突する。本プロジェクトはセッションドライバに `database` を使わない（`.env` の `SESSION_DRIVER` を `redis` にする）ことで衝突を避ける。
 
-- [ ] **Step 1: `.env` と `.env.example` の SESSION_DRIVER を確認/変更**
+- [x] **Step 1: `.env` と `.env.example` の SESSION_DRIVER を確認/変更**
 
 `.env` と `.env.example` の両方で次を設定：
 ```
 SESSION_DRIVER=redis
 ```
 
-- [ ] **Step 2: デフォルトのsessionsマイグレーションが無いことを確認**
+- [x] **Step 2: デフォルトのsessionsマイグレーションが無いことを確認**
 
 Run: `ls database/migrations/ | grep -i session`
 Expected: 何も表示されない（Laravel 13のデフォルト `0001_01_01_000000_create_users_table.php` 内にsessionsが含まれる場合は、その `sessions` テーブル定義行を削除する。下記Step 3）。
 
-- [ ] **Step 3: `create_users_table` 内のsessionsテーブル定義を削除（存在する場合）**
+- [x] **Step 3: `create_users_table` 内のsessionsテーブル定義を削除（存在する場合）**
 
 `database/migrations/0001_01_01_000000_create_users_table.php` を開き、`Schema::create('sessions', ...)` ブロックがあれば削除する。`down()` の `Schema::dropIfExists('sessions');` も削除。
 これにより交流セッション用 `sessions` テーブルと衝突しない。
 
-- [ ] **Step 4: コミット**
+- [x] **Step 4: コミット**
 
 ```bash
 git add .env.example database/migrations/0001_01_01_000000_create_users_table.php
@@ -145,11 +145,11 @@ git commit -m "chore(db): use redis session driver to free 'sessions' table name
 
 ### 4-1: usersテーブルにroleカラム追加
 
-- [ ] **Step 1: マイグレーション作成**
+- [x] **Step 1: マイグレーション作成**
 
 Run: `docker compose exec app php artisan make:migration add_role_to_users_table --table=users`
 
-- [ ] **Step 2: マイグレーション編集**
+- [x] **Step 2: マイグレーション編集**
 
 ```php
 public function up(): void
@@ -169,7 +169,7 @@ public function down(): void
 }
 ```
 
-- [ ] **Step 3: `app/Models/User.php` の $fillable に 'role' を追加**
+- [x] **Step 3: `app/Models/User.php` の $fillable に 'role' を追加**
 
 既存の `canAccessPanel()`（Filament用）はそのまま。`$fillable` に `'role'` を追加し、リレーションを定義：
 ```php
@@ -190,11 +190,11 @@ public function partner()
 
 ### 4-2: membersテーブル（日本側利用者）
 
-- [ ] **Step 1: モデル+マイグレーション作成**
+- [x] **Step 1: モデル+マイグレーション作成**
 
 Run: `docker compose exec app php artisan make:model Member -m`
 
-- [ ] **Step 2: マイグレーション編集**
+- [x] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('members', function (Blueprint $table) {
@@ -209,7 +209,7 @@ Schema::create('members', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 3: `app/Models/Member.php` 編集**
+- [x] **Step 3: `app/Models/Member.php` 編集**
 
 ```php
 <?php
@@ -243,11 +243,11 @@ class Member extends Model
 
 ### 4-3: partnersテーブル（海外側提供者）
 
-- [ ] **Step 1: モデル+マイグレーション作成**
+- [x] **Step 1: モデル+マイグレーション作成**
 
 Run: `docker compose exec app php artisan make:model Partner -m`
 
-- [ ] **Step 2: マイグレーション編集**
+- [x] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('partners', function (Blueprint $table) {
@@ -270,7 +270,7 @@ Schema::create('partners', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 3: `app/Models/Partner.php` 編集**
+- [x] **Step 3: `app/Models/Partner.php` 編集**
 
 ```php
 <?php
@@ -311,11 +311,11 @@ class Partner extends Model
 
 ### 4-4: sessionsテーブル（セッション枠）
 
-- [ ] **Step 1: モデル+マイグレーション作成**
+- [x] **Step 1: モデル+マイグレーション作成**
 
 Run: `docker compose exec app php artisan make:model Session -m`
 
-- [ ] **Step 2: マイグレーション編集**
+- [x] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('sessions', function (Blueprint $table) {
@@ -337,7 +337,7 @@ Schema::create('sessions', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 3: `app/Models/Session.php` 編集**
+- [x] **Step 3: `app/Models/Session.php` 編集**
 
 > ⚠️ クラス名 `Session` は `Illuminate\Support\Facades\Session` と衝突しうる。本モデルを使う側では `use App\Models\Session;` を明示し、Facadeとの混在を避ける。
 
@@ -377,11 +377,11 @@ class Session extends Model
 
 ### 4-5: session_participantsテーブル（参加グループ）
 
-- [ ] **Step 1: モデル+マイグレーション作成**
+- [x] **Step 1: モデル+マイグレーション作成**
 
 Run: `docker compose exec app php artisan make:model SessionParticipant -m`
 
-- [ ] **Step 2: マイグレーション編集**
+- [x] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('session_participants', function (Blueprint $table) {
@@ -401,7 +401,7 @@ Schema::create('session_participants', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 3: `app/Models/SessionParticipant.php` 編集**
+- [x] **Step 3: `app/Models/SessionParticipant.php` 編集**
 
 ```php
 <?php
@@ -439,7 +439,7 @@ class SessionParticipant extends Model
 
 > **⚠️ 仕様変更（2026-06-08）:** 「カタログ選択→WorldClass発送」方式から「自己購入→領収書提出→照合→送金」方式に変更。設計詳細は `docs/superpowers/specs/2026-05-29-worldclass-db-design.md` 4.6/4.6.1 参照。
 
-- [ ] **Step 1: モデル+マイグレーション作成**
+- [x] **Step 1: モデル+マイグレーション作成**
 
 Run:
 ```
@@ -447,7 +447,7 @@ docker compose exec app php artisan make:model SupportRequest -m
 docker compose exec app php artisan make:model SupportItemCatalog -m
 ```
 
-- [ ] **Step 2: support_requests マイグレーション編集**
+- [x] **Step 2: support_requests マイグレーション編集**
 
 ```php
 Schema::create('support_requests', function (Blueprint $table) {
@@ -465,7 +465,7 @@ Schema::create('support_requests', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 3: `app/Models/SupportRequest.php` 編集**
+- [x] **Step 3: `app/Models/SupportRequest.php` 編集**
 
 ```php
 <?php
@@ -494,7 +494,7 @@ class SupportRequest extends Model
 }
 ```
 
-- [ ] **Step 4: support_item_catalogs マイグレーション編集**
+- [x] **Step 4: support_item_catalogs マイグレーション編集**
 
 > 価格情報は持たない（現地物価差が大きく、固定参考価格は誤った審査基準を作るため）。「品目として支援対象に該当するか」のカテゴリ判定に純化する。
 
@@ -508,7 +508,7 @@ Schema::create('support_item_catalogs', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 5: `app/Models/SupportItemCatalog.php` 編集**
+- [x] **Step 5: `app/Models/SupportItemCatalog.php` 編集**
 
 ```php
 <?php
@@ -531,11 +531,11 @@ class SupportItemCatalog extends Model
 
 ### 4-7: couponsテーブル（クーポン）
 
-- [ ] **Step 1: モデル+マイグレーション作成**
+- [x] **Step 1: モデル+マイグレーション作成**
 
 Run: `docker compose exec app php artisan make:model Coupon -m`
 
-- [ ] **Step 2: マイグレーション編集**
+- [x] **Step 2: マイグレーション編集**
 
 ```php
 Schema::create('coupons', function (Blueprint $table) {
@@ -550,7 +550,7 @@ Schema::create('coupons', function (Blueprint $table) {
 });
 ```
 
-- [ ] **Step 3: `app/Models/Coupon.php` 編集**
+- [x] **Step 3: `app/Models/Coupon.php` 編集**
 
 ```php
 <?php
@@ -579,23 +579,23 @@ class Coupon extends Model
 
 ### 4-8: マイグレーション実行・検証・コミット
 
-- [ ] **Step 1: マイグレーション実行**
+- [x] **Step 1: マイグレーション実行**
 
 Run: `docker compose exec app php artisan migrate`
 Expected: 全テーブルが `DONE` 表示。
 
-- [ ] **Step 2: テーブル確認**
+- [x] **Step 2: テーブル確認**
 
 Run: `docker compose exec app php artisan db:show --counts`
 Expected: members / partners / sessions / session_participants / support_requests / support_item_catalogs / coupons / users が並ぶ。
 
-- [ ] **Step 3: Larastan・Pint チェック**
+- [x] **Step 3: Larastan・Pint チェック**
 
 Run: `docker compose exec app ./vendor/bin/pint`
 Run: `docker compose exec app ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M`
 Expected: pint整形・phpstan `[OK] No errors`。
 
-- [ ] **Step 4: コミット**
+- [x] **Step 4: コミット**
 
 ```bash
 git add database/migrations/ app/Models/
@@ -615,7 +615,7 @@ git commit -m "feat(db): add members/partners/sessions/participants/support/coup
 
 ### 5-1: ValueObjects（PHP enum）
 
-- [ ] **Step 1: `app/Domain/ValueObjects/MemberType.php`**
+- [x] **Step 1: `app/Domain/ValueObjects/MemberType.php`**
 
 ```php
 <?php
@@ -632,7 +632,7 @@ enum MemberType: string
 }
 ```
 
-- [ ] **Step 2: `app/Domain/ValueObjects/ProviderType.php`**
+- [x] **Step 2: `app/Domain/ValueObjects/ProviderType.php`**
 
 ```php
 <?php
@@ -646,7 +646,7 @@ enum ProviderType: string
 }
 ```
 
-- [ ] **Step 3: `app/Domain/ValueObjects/PartnerStatus.php`**
+- [x] **Step 3: `app/Domain/ValueObjects/PartnerStatus.php`**
 
 ```php
 <?php
@@ -662,7 +662,7 @@ enum PartnerStatus: string
 }
 ```
 
-- [ ] **Step 4: `app/Domain/ValueObjects/ThemeType.php`**
+- [x] **Step 4: `app/Domain/ValueObjects/ThemeType.php`**
 
 ```php
 <?php
@@ -679,7 +679,7 @@ enum ThemeType: string
 
 ### 5-2: Repository Interfaces
 
-- [ ] **Step 5: `app/Domain/Repositories/MemberRepositoryInterface.php`**
+- [x] **Step 5: `app/Domain/Repositories/MemberRepositoryInterface.php`**
 
 ```php
 <?php
@@ -694,7 +694,7 @@ interface MemberRepositoryInterface
 }
 ```
 
-- [ ] **Step 6: `app/Domain/Repositories/PartnerRepositoryInterface.php`**
+- [x] **Step 6: `app/Domain/Repositories/PartnerRepositoryInterface.php`**
 
 ```php
 <?php
@@ -711,7 +711,7 @@ interface PartnerRepositoryInterface
 
 ### 5-3: UseCase — RegisterMember
 
-- [ ] **Step 7: `app/UseCases/Auth/RegisterMemberInput.php`**
+- [x] **Step 7: `app/UseCases/Auth/RegisterMemberInput.php`**
 
 ```php
 <?php
@@ -733,7 +733,7 @@ readonly class RegisterMemberInput
 }
 ```
 
-- [ ] **Step 8: `app/UseCases/Auth/RegisterMemberOutput.php`**
+- [x] **Step 8: `app/UseCases/Auth/RegisterMemberOutput.php`**
 
 ```php
 <?php
@@ -750,7 +750,7 @@ readonly class RegisterMemberOutput
 }
 ```
 
-- [ ] **Step 9: `app/UseCases/Auth/RegisterMemberUseCase.php`**
+- [x] **Step 9: `app/UseCases/Auth/RegisterMemberUseCase.php`**
 
 ```php
 <?php
@@ -792,7 +792,7 @@ class RegisterMemberUseCase
 
 ### 5-4: UseCase — RegisterPartner
 
-- [ ] **Step 10: `app/UseCases/Auth/RegisterPartnerInput.php`**
+- [x] **Step 10: `app/UseCases/Auth/RegisterPartnerInput.php`**
 
 ```php
 <?php
@@ -815,7 +815,7 @@ readonly class RegisterPartnerInput
 }
 ```
 
-- [ ] **Step 11: `app/UseCases/Auth/RegisterPartnerOutput.php`**
+- [x] **Step 11: `app/UseCases/Auth/RegisterPartnerOutput.php`**
 
 ```php
 <?php
@@ -832,7 +832,7 @@ readonly class RegisterPartnerOutput
 }
 ```
 
-- [ ] **Step 12: `app/UseCases/Auth/RegisterPartnerUseCase.php`**
+- [x] **Step 12: `app/UseCases/Auth/RegisterPartnerUseCase.php`**
 
 ```php
 <?php
@@ -877,7 +877,7 @@ class RegisterPartnerUseCase
 
 ### 5-5: Infrastructure（Eloquentリポジトリ実装）
 
-- [ ] **Step 13: `app/Infrastructure/Repositories/EloquentMemberRepository.php`**
+- [x] **Step 13: `app/Infrastructure/Repositories/EloquentMemberRepository.php`**
 
 ```php
 <?php
@@ -896,7 +896,7 @@ class EloquentMemberRepository implements MemberRepositoryInterface
 }
 ```
 
-- [ ] **Step 14: `app/Infrastructure/Repositories/EloquentPartnerRepository.php`**
+- [x] **Step 14: `app/Infrastructure/Repositories/EloquentPartnerRepository.php`**
 
 ```php
 <?php
@@ -917,7 +917,7 @@ class EloquentPartnerRepository implements PartnerRepositoryInterface
 
 ### 5-6: DIバインディング
 
-- [ ] **Step 15: `app/Providers/AppServiceProvider.php` の register() にバインディング追加**
+- [x] **Step 15: `app/Providers/AppServiceProvider.php` の register() にバインディング追加**
 
 ```php
 use App\Domain\Repositories\MemberRepositoryInterface;
@@ -932,7 +932,7 @@ public function register(): void
 }
 ```
 
-- [ ] **Step 16: Pint・Larastan・コミット**
+- [x] **Step 16: Pint・Larastan・コミット**
 
 ```bash
 docker compose exec app ./vendor/bin/pint
