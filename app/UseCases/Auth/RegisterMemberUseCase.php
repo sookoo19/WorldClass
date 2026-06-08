@@ -12,7 +12,7 @@ class RegisterMemberUseCase
         private MemberRepositoryInterface $memberRepository,
     ) {}
 
-    public function execute(RegisiteMemberInput $input): RegisterMemberOutput
+    public function execute(RegisterMemberInput $input): RegisterMemberOutput
     {
         $user = User::create([
             'name' => $input->name,
