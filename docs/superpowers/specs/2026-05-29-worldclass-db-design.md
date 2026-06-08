@@ -148,16 +148,37 @@ Laravel Breeze 標準の `users` に `role` を追加する。
 
 ### 4.6 support_requests（物資支援）
 
+> **⚠️ 仕様変更（2026-06-08）:** 当初の「カタログから選択→WorldClassが発送」方式から、**「海外パートナーが現地で自己購入→領収書提出→照合→送金（リインバース）」方式**に変更。発送系ステータス（shipped/delivered）は成立しないため、申請額と承認（送金）額を分離し、審査フローに合わせたステータスへ再設計した。
+
 | カラム | 型 | 制約 | 説明 |
 |---|---|---|---|
 | id | bigint | PK | |
 | partner_id | bigint | FK→partners, cascadeOnDelete | |
-| item_list | json | | 申請品目 [{name, quantity}] |
-| total_amount_jpy | unsignedInteger | | 申請総額（円） |
-| status | enum(pending, shipped, delivered) | default pending | 発送ステータス |
-| receipt_photo_url | string | nullable | 受領写真URL |
-| delivered_at | datetime | nullable | 受領日時 |
+| item_list | json | | 申請品目 [{name, quantity, unit_price}] |
+| claimed_amount_jpy | unsignedInteger | | 領収書記載の申請額（円） |
+| receipt_photo_url | string | | 領収書写真URL（証拠の核となるため必須） |
+| status | enum(pending, approved, rejected, paid) | default pending | 審査・送金ステータス |
+| approved_amount_jpy | unsignedInteger | nullable | 照合後に承認した送金額（部分承認に対応するため申請額と分離） |
+| rejection_reason | text | nullable | 却下理由 |
+| reviewed_at | datetime | nullable | 審査完了日時 |
+| paid_at | datetime | nullable | 送金完了日時 |
 | timestamps | | | |
+
+承認時、`approved_amount_jpy` を `partners.support_pool` から減算する（UseCase層で実装。Phase1はスキーマのみ）。
+
+### 4.6.1 support_item_catalog（支援対象品目マスタ）
+
+> 申請品目が支援対象として該当するかを判定するための参照マスタ。**価格情報は持たない**——現地物価差が大きく、固定の参考価格（例: 円換算の基準額）をDBに持たせると誤った審査基準を機械的に作ってしまうため。金額の妥当性は領収書の実額と、審査担当者の現地相場理解（`partners.country` から得られる文脈）に委ねる。マスタは「品目としてカテゴリ的に対象か」の判定に純化する。
+
+| カラム | 型 | 制約 | 説明 |
+|---|---|---|---|
+| id | bigint | PK | |
+| name | string | | 品目名（例: ノート、サッカーボール） |
+| category | string | nullable | 分類（文房具/教材/スポーツ用品 等） |
+| is_active | boolean | default true | 支援対象として現在有効か |
+| timestamps | | | |
+
+`support_requests.item_list` はこのマスタへの厳密な参照（item_id）を持たず自由記述のままとする。理由: 領収書の表記は店舗ごとに揺れがあり、申請段階でマスタとの厳密一致を強制すると入力の柔軟性を損なう。照合は審査担当者が領収書・申請内容・本マスタの3点を見て行う。
 
 ### 4.7 coupons（クーポン）
 
@@ -184,6 +205,8 @@ members (1) ──── (N) coupons
 partners (1) ──── (N) sessions
 partners (1) ──── (N) support_requests
 sessions (1) ──── (N) session_participants
+
+support_item_catalog は他テーブルとFK関係を持たない参照マスタ（審査時の目視照合用）
 ```
 
 - `users.role = member` のとき `members` を1件持つ。

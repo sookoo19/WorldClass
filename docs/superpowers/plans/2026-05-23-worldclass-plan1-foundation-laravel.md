@@ -23,7 +23,7 @@
 | Task 1 | Laravel 13 + Inertia + React + Pest | ✅ 完了（Breezeは現状 .jsx。新規ページは .tsx で追加・漸進移行） |
 | Task 2 | Filament v4 管理画面 | ✅ 完了（v3はLaravel13非対応のためv4。ext-intl必須でDockerfileに`libicu-dev`+`intl`追加済み） |
 | Task 3 | GitHub Actions CI（test + larastan level5 + pint） | ✅ 完了（CI green確認済み） |
-| Task 4 | DBマイグレーション（新設計・全6テーブル） | 🔄 進行中（4-0・4-1完了、4-2〜4-7未着手） |
+| Task 4 | DBマイグレーション（新設計・全7テーブル） | 🔄 進行中（4-0〜4-5完了、4-6〜4-8残） |
 | Task 5 | クリーンアーキ骨格（Domain/UseCase/Infrastructure） | ⬜ |
 | Task 6 | TDD UseCaseユニットテスト | ⬜ |
 | Task 7 | ロール保護ミドルウェア | ⬜ |
@@ -107,10 +107,10 @@ worldclass/
 
 ---
 
-## Task 4: DBマイグレーション（新設計・全6テーブル）
+## Task 4: DBマイグレーション（新設計・全7テーブル）
 
 **Files:**
-- Create: 7マイグレーション（role追加 + 6テーブル）
+- Create: 8マイグレーション（role追加 + 7テーブル）
 - Create/Modify: `app/Models/` 各モデル
 
 > **前提:** Docker起動中であること。未起動なら `DOCKER_BUILDKIT=0 docker compose up -d`。
@@ -435,23 +435,32 @@ class SessionParticipant extends Model
 }
 ```
 
-### 4-6: support_requestsテーブル（物資支援）
+### 4-6: support_requests / support_item_catalogテーブル（物資支援）
+
+> **⚠️ 仕様変更（2026-06-08）:** 「カタログ選択→WorldClass発送」方式から「自己購入→領収書提出→照合→送金」方式に変更。設計詳細は `docs/superpowers/specs/2026-05-29-worldclass-db-design.md` 4.6/4.6.1 参照。
 
 - [ ] **Step 1: モデル+マイグレーション作成**
 
-Run: `docker compose exec app php artisan make:model SupportRequest -m`
+Run:
+```
+docker compose exec app php artisan make:model SupportRequest -m
+docker compose exec app php artisan make:model SupportItemCatalog -m
+```
 
-- [ ] **Step 2: マイグレーション編集**
+- [ ] **Step 2: support_requests マイグレーション編集**
 
 ```php
 Schema::create('support_requests', function (Blueprint $table) {
     $table->id();
     $table->foreignId('partner_id')->constrained()->cascadeOnDelete();
-    $table->json('item_list');                         // [{name, quantity}]
-    $table->unsignedInteger('total_amount_jpy');
-    $table->enum('status', ['pending', 'shipped', 'delivered'])->default('pending');
-    $table->string('receipt_photo_url')->nullable();
-    $table->dateTime('delivered_at')->nullable();
+    $table->json('item_list');                              // 申請内容 [{name, quantity, unit_price}]
+    $table->unsignedInteger('claimed_amount_jpy');           // 領収書記載の申請額
+    $table->string('receipt_photo_url');                     // 領収書写真（証拠の核、必須）
+    $table->enum('status', ['pending', 'approved', 'rejected', 'paid'])->default('pending');
+    $table->unsignedInteger('approved_amount_jpy')->nullable();  // 照合後の承認（送金）額
+    $table->text('rejection_reason')->nullable();
+    $table->dateTime('reviewed_at')->nullable();
+    $table->dateTime('paid_at')->nullable();
     $table->timestamps();
 });
 ```
@@ -463,18 +472,19 @@ Schema::create('support_requests', function (Blueprint $table) {
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
+#[Fillable([
+    'partner_id', 'item_list', 'claimed_amount_jpy', 'receipt_photo_url',
+    'status', 'approved_amount_jpy', 'rejection_reason', 'reviewed_at', 'paid_at',
+])]
 class SupportRequest extends Model
 {
-    protected $fillable = [
-        'partner_id', 'item_list', 'total_amount_jpy',
-        'status', 'receipt_photo_url', 'delivered_at',
-    ];
-
     protected $casts = [
-        'item_list'    => 'array',
-        'delivered_at' => 'datetime',
+        'item_list'   => 'array',
+        'reviewed_at' => 'datetime',
+        'paid_at'     => 'datetime',
     ];
 
     public function partner()
@@ -483,6 +493,41 @@ class SupportRequest extends Model
     }
 }
 ```
+
+- [ ] **Step 4: support_item_catalog マイグレーション編集**
+
+> 価格情報は持たない（現地物価差が大きく、固定参考価格は誤った審査基準を作るため）。「品目として支援対象に該当するか」のカテゴリ判定に純化する。
+
+```php
+Schema::create('support_item_catalog', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');                       // 品目名（例: ノート、サッカーボール）
+    $table->string('category')->nullable();       // 分類（文房具/教材/スポーツ用品 等）
+    $table->boolean('is_active')->default(true);  // 支援対象として現在有効か
+    $table->timestamps();
+});
+```
+
+- [ ] **Step 5: `app/Models/SupportItemCatalog.php` 編集**
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+
+#[Fillable(['name', 'category', 'is_active'])]
+class SupportItemCatalog extends Model
+{
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+}
+```
+
+> 他テーブルとFK関係を持たない参照マスタ（審査時の目視照合用）。`support_requests.item_list` はこのマスタへの厳密参照を持たず自由記述のまま（領収書表記の揺れに対応するため）。
 
 ### 4-7: couponsテーブル（クーポン）
 
@@ -542,7 +587,7 @@ Expected: 全テーブルが `DONE` 表示。
 - [ ] **Step 2: テーブル確認**
 
 Run: `docker compose exec app php artisan db:show --counts`
-Expected: members / partners / sessions / session_participants / support_requests / coupons / users が並ぶ。
+Expected: members / partners / sessions / session_participants / support_requests / support_item_catalog / coupons / users が並ぶ。
 
 - [ ] **Step 3: Larastan・Pint チェック**
 
@@ -1756,7 +1801,7 @@ git commit -m "feat(admin): add Filament partner review resource"
 
 ## セルフレビュー（スペックカバレッジ）
 
-- ✅ 全DBスキーマ（members / partners / sessions / session_participants / support_requests / coupons）— DB設計書準拠
+- ✅ 全DBスキーマ（members / partners / sessions / session_participants / support_requests / support_item_catalog / coupons）— DB設計書準拠
 - ✅ 3ロール認証（member / partner / admin）
 - ✅ 利用者5区分（MemberType enum）/ 提供者2区分（ProviderType enum）
 - ✅ セッション枠 + 参加グループ（専用/オープン両対応スキーマ）
