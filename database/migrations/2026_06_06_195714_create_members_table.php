@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('members', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->enum('type', ['family', 'cram_school', 'circle', 'public_facility', 'other']);
+            $table->string('org_name')->nullable(); // 家庭はnull
+            $table->string('prefecture');
+            $table->string('contact_name');
+            $table->string('grade_range')->nullable();
             $table->timestamps();
         });
     }
