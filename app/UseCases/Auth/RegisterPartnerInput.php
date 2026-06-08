@@ -12,7 +12,7 @@ readonly class RegisterPartnerInput
         public string $country,
         public string $region,
         public string $contactName,
-        public array  $themes,         // ThemeType値の配列
+        public array $themes,         // ThemeType値の配列
         public string $gradeRange,
     ) {}
 }
