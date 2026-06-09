@@ -3,18 +3,19 @@
 namespace App\UseCases\Auth;
 
 use App\Domain\Repositories\PartnerRepositoryInterface;
-use App\Models\User;
+use App\Domain\Repositories\UserRepositoryInterface;
 use Illuminate\Support\Facades\Hash;
 
 class RegisterPartnerUseCase
 {
     public function __construct(
+        private UserRepositoryInterface $userRepository,
         private PartnerRepositoryInterface $partnerRepository,
     ) {}
 
     public function execute(RegisterPartnerInput $input): RegisterPartnerOutput
     {
-        $user = User::create([
+        $user = $this->userRepository->create([
             'name' => $input->contactName,
             'email' => $input->email,
             'password' => Hash::make($input->password),

@@ -3,18 +3,19 @@
 namespace App\UseCases\Auth;
 
 use App\Domain\Repositories\MemberRepositoryInterface;
-use App\Models\User;
+use App\Domain\Repositories\UserRepositoryInterface;
 use Illuminate\Support\Facades\Hash;
 
 class RegisterMemberUseCase
 {
     public function __construct(
+        private UserRepositoryInterface $userRepository,
         private MemberRepositoryInterface $memberRepository,
     ) {}
 
     public function execute(RegisterMemberInput $input): RegisterMemberOutput
     {
-        $user = User::create([
+        $user = $this->userRepository->create([
             'name' => $input->name,
             'email' => $input->email,
             'password' => Hash::make($input->password),
