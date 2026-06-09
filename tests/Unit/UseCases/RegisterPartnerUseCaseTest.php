@@ -20,8 +20,7 @@ class RegisterPartnerUseCaseTest extends TestCase
         $userRepo = Mockery::mock(UserRepositoryInterface::class);
         $userRepo->shouldReceive('create')
             ->once()
-            ->with(Mockery::on(fn ($attrs) =>
-                $attrs['role'] === 'partner' &&
+            ->with(Mockery::on(fn ($attrs) => $attrs['role'] === 'partner' &&
                 $attrs['email'] === 'partner@example.com'
             ))
             ->andReturn($user);
@@ -29,8 +28,7 @@ class RegisterPartnerUseCaseTest extends TestCase
         $partnerRepo = Mockery::mock(PartnerRepositoryInterface::class);
         $partnerRepo->shouldReceive('create')
             ->once()
-            ->with(Mockery::on(fn ($attrs) =>
-                $attrs['status'] === 'pending' &&
+            ->with(Mockery::on(fn ($attrs) => $attrs['status'] === 'pending' &&
                 $attrs['provider_type'] === 'overseas_school' &&
                 $attrs['display_name'] === 'Sunshine Elementary'
             ))
@@ -39,15 +37,15 @@ class RegisterPartnerUseCaseTest extends TestCase
         $useCase = new RegisterPartnerUseCase($userRepo, $partnerRepo);
 
         $input = new RegisterPartnerInput(
-            email:        'partner@example.com',
-            password:     'password123',
+            email: 'partner@example.com',
+            password: 'password123',
             providerType: 'overseas_school',
-            displayName:  'Sunshine Elementary',
-            country:      'ケニア',
-            region:       'Nairobi',
-            contactName:  'Maria Santos',
-            themes:       ['culture', 'global'],
-            gradeRange:   'Grade 4-6',
+            displayName: 'Sunshine Elementary',
+            country: 'ケニア',
+            region: 'Nairobi',
+            contactName: 'Maria Santos',
+            themes: ['culture', 'global'],
+            gradeRange: 'Grade 4-6',
         );
 
         $output = $useCase->execute($input);

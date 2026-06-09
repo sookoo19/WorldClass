@@ -9,29 +9,29 @@ use Illuminate\Support\Facades\Hash;
 class RegisterPartnerUseCase
 {
     public function __construct(
-        private UserRepositoryInterface    $userRepository,
+        private UserRepositoryInterface $userRepository,
         private PartnerRepositoryInterface $partnerRepository,
     ) {}
 
     public function execute(RegisterPartnerInput $input): RegisterPartnerOutput
     {
         $user = $this->userRepository->create([
-            'name'     => $input->contactName,
-            'email'    => $input->email,
+            'name' => $input->contactName,
+            'email' => $input->email,
             'password' => Hash::make($input->password),
-            'role'     => 'partner',
+            'role' => 'partner',
         ]);
 
         $this->partnerRepository->create([
-            'user_id'       => $user->id,
+            'user_id' => $user->id,
             'provider_type' => $input->providerType,
-            'display_name'  => $input->displayName,
-            'country'       => $input->country,
-            'region'        => $input->region,
-            'contact_name'  => $input->contactName,
-            'themes'        => $input->themes,
-            'grade_range'   => $input->gradeRange,
-            'status'        => 'pending',
+            'display_name' => $input->displayName,
+            'country' => $input->country,
+            'region' => $input->region,
+            'contact_name' => $input->contactName,
+            'themes' => $input->themes,
+            'grade_range' => $input->gradeRange,
+            'status' => 'pending',
         ]);
 
         return new RegisterPartnerOutput($user);
