@@ -312,7 +312,7 @@ class EloquentOpenSessionRepositoryTest extends TestCase
         $user = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
 
         return Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school',
+            'user_id' => $user->id, 'provider_type' => 'overseas_school',
             'display_name' => 'Test School', 'country' => 'Kenya', 'region' => 'Nairobi',
             'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
@@ -930,7 +930,7 @@ class ProcessSessionCancellationTest extends TestCase
     {
         $pUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -1128,7 +1128,7 @@ class JudgeOpenSessionFormationTest extends TestCase
     {
         $pUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -1358,7 +1358,7 @@ class OpenSessionWebhookTest extends TestCase
         if (! isset($this->session)) {
             $pUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
             $partner = Partner::create([
-                'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+                'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
                 'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
                 'themes' => ['culture'], 'grade_range' => '1-6',
             ]);
@@ -1546,7 +1546,7 @@ class OpenSessionApplicationTest extends TestCase
     {
         $pUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);

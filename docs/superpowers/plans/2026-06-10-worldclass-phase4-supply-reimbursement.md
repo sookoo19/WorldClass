@@ -269,7 +269,7 @@ class AccrueSupportPoolTest extends TestCase
         $user = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
 
         return Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $user->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6', 'support_pool' => 0,
         ]);
@@ -452,7 +452,7 @@ class SubmitSupportRequestTest extends TestCase
         $user = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
 
         return Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $user->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6', 'support_pool' => $pool,
         ]);
@@ -632,7 +632,7 @@ class ReviewSupportRequestTest extends TestCase
     {
         $user = User::create(['name' => 'P', 'email' => uniqid().'@example.com', 'password' => 'x', 'role' => 'partner']);
         $this->partner = Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $user->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6', 'support_pool' => $pool,
         ]);
@@ -901,7 +901,7 @@ class SupportRequestHttpTest extends TestCase
         parent::setUp();
         $this->partnerUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => bcrypt('x'), 'role' => 'partner']);
         $this->partner = Partner::create([
-            'user_id' => $this->partnerUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $this->partnerUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6', 'support_pool' => 10000,
         ]);
@@ -964,7 +964,7 @@ class SupportRequestHttpTest extends TestCase
 
         $otherUser = User::create(['name' => 'O', 'email' => 'o@example.com', 'password' => bcrypt('x'), 'role' => 'partner']);
         Partner::create([
-            'user_id' => $otherUser->id, 'provider_type' => 'school', 'display_name' => 'O',
+            'user_id' => $otherUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'O',
             'country' => 'Ghana', 'region' => 'A', 'contact_name' => 'O', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);

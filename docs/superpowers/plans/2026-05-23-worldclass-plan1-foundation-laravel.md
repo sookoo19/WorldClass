@@ -25,9 +25,9 @@
 | Task 3 | GitHub Actions CI（test + larastan level5 + pint） | ✅ 完了（CI green確認済み） |
 | Task 4 | DBマイグレーション（新設計・全7テーブル） | ✅ 完了（全7テーブル、マイグレーション適用済み） |
 | Task 5 | クリーンアーキ骨格（Domain/UseCase/Infrastructure） | ✅ 完了（テスト25件pass・Larastan通過） |
-| Task 6 | TDD UseCaseユニットテスト | ⬜ |
-| Task 7 | ロール保護ミドルウェア | ⬜ |
-| Task 8 | 登録フォーム（Controller→UseCase, .tsx） | ⬜ |
+| Task 6 | TDD UseCaseユニットテスト | ✅ 完了（65870a8） |
+| Task 7 | ロール保護ミドルウェア | ✅ 完了（cfe0a46） |
+| Task 8 | 登録フォーム（Controller→UseCase, .tsx） | 🔶 途中（FormRequest・Controller・ルート済み: 5f3f612。**RegisterMember.tsx / RegisterPartner.tsx 未作成**。Task 8.5のセキュリティ修正も未） |
 | Task 9 | Feature Test（登録フロー） | ⬜ |
 | Task 10 | AdminUserSeeder | ⬜ |
 | Task 11 | Filament PartnerResource（審査画面） | ⬜ |
@@ -1589,6 +1589,53 @@ git commit -m "feat(auth): add member/partner registration via UseCase with Form
 
 ---
 
+## Task 8.5: 登録まわりのセキュリティ修正（2026-06-10レビューで追加）
+
+**Files:**
+- Modify: `routes/auth.php`
+- Delete: `resources/js/Pages/Auth/Register.jsx`（Breeze残骸・遷移元なしを確認のうえ）
+
+- [ ] **Step 1: 死にルートの削除**
+
+`routes/auth.php` から以下を削除する。`RegisteredUserController::store` は member/partner 分割時に削除済みのため、このルートはPOSTすると即エラーになる:
+
+```php
+Route::post('register', [RegisteredUserController::class, 'store']);  // ← 削除
+```
+
+- [ ] **Step 2: 登録POSTにレート制限を追加**
+
+bot による大量アカウント作成を防ぐ。`routes/auth.php` の登録POST 2本に `throttle` を付与:
+
+```php
+Route::post('register/member', [RegisteredUserController::class,
+    'storeMember'])->middleware('throttle:5,1');
+
+Route::post('register/partner', [RegisteredUserController::class,
+    'storePartner'])->middleware('throttle:5,1');
+```
+
+- [ ] **Step 3: Breeze残骸の `Register.jsx` を削除**
+
+`resources/js/Pages/Auth/Register.jsx` への遷移が残っていないことを確認（`grep -rn "Auth/Register'" resources/js/` で参照ゼロ）してから削除。`Login.jsx` 内に `route('register')` リンクがある場合は `register.member` へ差し替える。
+
+- [ ] **Step 4: テスト・コミット**
+
+```bash
+docker compose exec app php artisan test
+```
+
+Expected: 全PASS
+
+```bash
+git add routes/auth.php resources/js/
+git commit -m "fix(auth): remove dead register route and add rate limiting"
+```
+
+> **メール検証について（判断メモ）:** `User` の `MustVerifyEmail` は現在無効（Breezeデフォルト）。`Registered` イベントで検証メール自体は送られるが、未検証でもダッシュボードに入れる。MVPでは非強制のままとし、強制する場合は `User implements MustVerifyEmail` ＋ dashboardルートに `verified` ミドルウェアを追加する（決済を伴うPhase 2前に再検討）。
+
+---
+
 ## Task 9: Feature Test — 登録フロー
 
 **Files:**
@@ -1715,18 +1762,37 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
+        // パスワードのハードコード禁止: リポジトリは公開され得る・本番seedで既知弱パスワードの
+        // admin（Filament全権）が作られる事故を防ぐため、envから必須で受け取る
+        $password = env('ADMIN_SEED_PASSWORD');
+
+        if (! $password) {
+            $this->command->warn('ADMIN_SEED_PASSWORD が未設定のため管理者ユーザーを作成しません。');
+
+            return;
+        }
+
+        $email = env('ADMIN_SEED_EMAIL', 'admin@worldclass.jp');
+
         User::updateOrCreate(
-            ['email' => 'admin@worldclass.jp'],
+            ['email' => $email],
             [
                 'name'     => 'WorldClass Admin',
-                'password' => Hash::make('admin123456'),
+                'password' => Hash::make($password),
                 'role'     => 'admin',
             ]
         );
 
-        $this->command->info('Admin user: admin@worldclass.jp / admin123456');
+        $this->command->info("Admin user created: {$email}");
     }
 }
+```
+
+`.env` に追記し、`.env.example` にはキー名のみ追加:
+
+```env
+ADMIN_SEED_EMAIL=admin@worldclass.jp
+ADMIN_SEED_PASSWORD=   # ローカル用の任意の強いパスワード（コミットしない）
 ```
 
 - [ ] **Step 3: `database/seeders/DatabaseSeeder.php` に登録**
@@ -1741,7 +1807,7 @@ public function run(): void
 - [ ] **Step 4: Seeder実行**
 
 Run: `docker compose exec app php artisan db:seed`
-Expected: `Admin user: admin@worldclass.jp / admin123456`
+Expected: `Admin user created: admin@worldclass.jp`（`ADMIN_SEED_PASSWORD` 設定済みの場合）
 
 - [ ] **Step 5: コミット**
 
@@ -1786,7 +1852,7 @@ Run: `docker compose exec app php artisan make:filament-resource Partner --gener
 
 - [ ] **Step 3: 動作確認**
 
-`http://localhost/admin` → `admin@worldclass.jp / admin123456` でログイン → Partners一覧でステータス変更ができる。
+`http://localhost/admin` → `.env` の `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` でログイン → Partners一覧でステータス変更ができる。
 
 - [ ] **Step 4: Pint・Larastan・コミット**
 

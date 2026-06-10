@@ -324,7 +324,7 @@ class PreparationFlowTest extends TestCase
 
         $this->partnerUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => bcrypt('x'), 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $this->partnerUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $this->partnerUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -673,7 +673,7 @@ class RemindUnreadySessionsJobTest extends TestCase
     {
         $user = User::create(['name' => 'P', 'email' => uniqid().'@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $user->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -841,7 +841,7 @@ class AutoCancelUnreadySessionsJobTest extends TestCase
     {
         $user = User::create(['name' => 'P', 'email' => uniqid().'@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $user->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -985,7 +985,7 @@ class SessionLifecycleJobsTest extends TestCase
     {
         $pUser = User::create(['name' => 'P', 'email' => uniqid().'@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -1204,7 +1204,7 @@ class RatingTest extends TestCase
         if (! isset($this->partner)) {
             $pUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
             $this->partner = Partner::create([
-                'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+                'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
                 'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
                 'themes' => ['culture'], 'grade_range' => '1-6',
             ]);
@@ -1730,7 +1730,66 @@ Action::make('addPenalty')
     }),
 ```
 
-- [ ] **Step 5: 全テスト・Lint・コミット**
+- [ ] **Step 5: 非アクティブパートナーのアクセス遮断ミドルウェア**
+
+`suspended` / `rejected` のパートナーがダッシュボード・スケジュール登録・readyチェックを使い続けられないようにする（`hidden` はカタログ非表示のみで、ダッシュボード利用は許可する）。
+
+`app/Http/Middleware/EnsurePartnerActive.php`:
+
+```php
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+class EnsurePartnerActive
+{
+    public function handle(Request $request, Closure $next): mixed
+    {
+        $partner = $request->user()?->partner;
+
+        if ($partner && in_array($partner->status, ['suspended', 'rejected'], true)) {
+            abort(403, 'このアカウントは現在利用できません。運営にお問い合わせください。');
+        }
+
+        return $next($request);
+    }
+}
+```
+
+`bootstrap/app.php` でエイリアス登録:
+
+```php
+$middleware->alias([
+    'role' => \App\Http\Middleware\EnsureRole::class,
+    'partner.active' => \App\Http\Middleware\EnsurePartnerActive::class,
+]);
+```
+
+`routes/web.php` のpartnerグループに適用:
+
+```php
+Route::middleware(['auth', 'role:partner', 'partner.active'])->prefix('partner')->group(function () {
+    // 既存のpartnerルート
+});
+```
+
+Featureテスト（`tests/Feature/PreparationFlowTest.php` に追加）:
+
+```php
+public function test_suspendedパートナーはダッシュボード系にアクセスできない(): void
+{
+    $this->session->partner->update(['status' => 'suspended']);
+
+    $this->actingAs($this->partnerUser)
+        ->post("/partner/sessions/{$this->session->id}/ready")
+        ->assertForbidden();
+}
+```
+
+- [ ] **Step 6: 全テスト・Lint・コミット**
 
 ```bash
 docker compose exec app php artisan test
