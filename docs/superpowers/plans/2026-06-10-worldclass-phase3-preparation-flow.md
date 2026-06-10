@@ -82,10 +82,11 @@ session_participants側 `up()`:
 Schema::table('session_participants', function (Blueprint $table) {
     $table->dateTime('rating_requested_at')->nullable(); // 評価依頼送信済み判定
     $table->dateTime('rating_reminded_at')->nullable();  // 評価リマインド送信済み判定
+    $table->dateTime('rated_at')->nullable();            // 評価提出日時（連続低評価判定の並び順に使用。updated_atは通知処理でも動くため不可）
 });
 ```
 
-`down()` は `dropColumn(['rating_requested_at', 'rating_reminded_at'])`。
+`down()` は `dropColumn(['rating_requested_at', 'rating_reminded_at', 'rated_at'])`。
 
 - [ ] **Step 2: マイグレーション実行**
 
@@ -104,11 +105,12 @@ Expected: 2件 Migrated
 'reminded_at' => 'datetime',
 ```
 
-`app/Models/SessionParticipant.php` の `#[Fillable]` に `'rating_requested_at', 'rating_reminded_at'` を、`$casts` に:
+`app/Models/SessionParticipant.php` の `#[Fillable]` に `'rating_requested_at', 'rating_reminded_at', 'rated_at'` を、`$casts` に:
 
 ```php
 'rating_requested_at' => 'datetime',
 'rating_reminded_at' => 'datetime',
+'rated_at' => 'datetime',
 ```
 
 - [ ] **Step 4: PartnerStatus に Hidden を追加**
@@ -686,6 +688,7 @@ class RemindUnreadySessionsJobTest extends TestCase
     public function test_3日前12時を過ぎた未readyセッションに催促を送る(): void
     {
         Mail::fake();
+        config(['mail.admin_alert_address' => 'admin@example.com']);
         Carbon::setTestNow('2026-07-07 13:00:00');
         $session = $this->makeSession('confirmed', '2026-07-10 10:00:00');
 
@@ -770,7 +773,13 @@ class RemindUnreadySessionsJob implements ShouldQueue
 
         foreach ($targets as $session) {
             Mail::to($session->partner->user->email)->queue(new PartnerPrepReminder($session));
-            Mail::to(config('mail.admin_alert_address'))->queue(new AdminUnreadyAlert($session));
+
+            // ADMIN_ALERT_EMAIL未設定でMail::to(null)が例外にならないようガード
+            if ($adminAddress = config('mail.admin_alert_address')) {
+                Mail::to($adminAddress)->queue(new AdminUnreadyAlert($session));
+            } else {
+                logger()->warning('ADMIN_ALERT_EMAIL is not configured; unready alert skipped.', ['session_id' => $session->id]);
+            }
 
             $session->update(['unready_reminded_at' => now()]);
         }
@@ -1213,6 +1222,7 @@ class RatingTest extends TestCase
             'session_id' => $session->id, 'member_id' => $member->id,
             'status' => 'confirmed', 'price_paid' => 2500, 'support_amount' => 1250,
             'rating_score' => $rating,
+            'rated_at' => $rating !== null ? now() : null, // 連続低評価判定はrated_at順
         ]);
     }
 
@@ -1268,6 +1278,29 @@ class RatingTest extends TestCase
             ->assertRedirect();
 
         $this->assertEquals('hidden', $this->partner->fresh()->status);
+    }
+
+    public function test_評価済みは再提出できない_平均の操作防止(): void
+    {
+        $p = $this->makeCompletedParticipant('2026-07-01 10:00:00', rating: 5);
+
+        $this->actingAs($p->member->user)
+            ->post("/participants/{$p->id}/rating", ['rating_score' => 1])
+            ->assertSessionHasErrors();
+
+        $this->assertEquals(5, $p->fresh()->rating_score);
+    }
+
+    public function test_キャンセルした参加者は評価できない(): void
+    {
+        $p = $this->makeCompletedParticipant('2026-07-01 10:00:00');
+        $p->update(['status' => 'cancelled']);
+
+        $this->actingAs($p->member->user)
+            ->post("/participants/{$p->id}/rating", ['rating_score' => 1])
+            ->assertSessionHasErrors();
+
+        $this->assertNull($p->fresh()->rating_score);
     }
 }
 ```
@@ -1365,9 +1398,18 @@ class SubmitRatingUseCase
             throw new \DomainException('完了していないセッションは評価できません。');
         }
 
+        if ($participant->status !== ParticipantStatus::Confirmed->value) {
+            throw new \DomainException('参加していないセッションは評価できません。');
+        }
+
+        if ($participant->rating_score !== null) {
+            throw new \DomainException('このセッションは評価済みです。');
+        }
+
         $participant->update([
             'rating_score' => $score,
             'rating_comment' => $comment,
+            'rated_at' => now(),
         ]);
 
         $partner = $participant->session->partner;
@@ -1380,11 +1422,11 @@ class SubmitRatingUseCase
 
         $partner->update(['rating_score' => round((float) $avg, 2)]);
 
-        // ★2以下×3連続 → カタログ非表示
+        // ★2以下×3連続 → カタログ非表示（並びは評価提出日時。updated_atは通知処理でも動くため使わない）
         $lastThree = SessionParticipant::query()
             ->whereNotNull('rating_score')
             ->whereHas('session', fn ($q) => $q->where('partner_id', $partner->id))
-            ->latest('updated_at')
+            ->latest('rated_at')
             ->limit(3)
             ->pluck('rating_score');
 
@@ -1523,7 +1565,7 @@ docker compose exec app php artisan test tests/Feature/RatingTest.php
 docker compose exec app npm run build
 ```
 
-Expected: PASS（4件）・ビルド成功
+Expected: PASS（6件）・ビルド成功
 
 ```bash
 git add app/Jobs/SendRatingRequestsJob.php app/UseCases/Preparation/SubmitRatingUseCase.php app/Http/Controllers/RatingController.php resources/js/Pages/Ratings/ routes/web.php tests/Feature/RatingTest.php

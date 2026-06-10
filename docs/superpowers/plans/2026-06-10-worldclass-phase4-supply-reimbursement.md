@@ -672,6 +672,16 @@ class ReviewSupportRequestTest extends TestCase
         app(ApproveSupportRequestUseCase::class)->execute($request->fresh(), approvedAmountJpy: 4500);
     }
 
+    public function test_負数や0の承認額は拒否される(): void
+    {
+        Mail::fake();
+        $request = $this->makeRequest(pool: 10000);
+
+        $this->expectException(\DomainException::class);
+
+        app(ApproveSupportRequestUseCase::class)->execute($request, approvedAmountJpy: -5000);
+    }
+
     public function test_却下でプールは変動しない(): void
     {
         Mail::fake();
@@ -740,12 +750,19 @@ class ApproveSupportRequestUseCase
 {
     public function execute(SupportRequest $request, int $approvedAmountJpy): void
     {
-        DB::transaction(function () use ($request, $approvedAmountJpy) {
-            // 行ロックで残高の同時更新（積算・他申請の承認）と整合させる
-            $partner = Partner::lockForUpdate()->findOrFail($request->partner_id);
+        // 負数・0を拒否（負数はdecrementでプール増額になるため必須ガード）
+        if ($approvedAmountJpy < 1) {
+            throw new \DomainException('承認額は1円以上である必要があります。');
+        }
 
-            if ($request->status !== SupportRequestStatus::Pending->value) {
-                throw new InvalidSupportRequestStateException('pending', $request->status);
+        DB::transaction(function () use ($request, $approvedAmountJpy) {
+            // 申請行・パートナー行の両方をロック:
+            // 同一申請の二重承認（プール二重減算・二重送金）と残高の同時更新を防ぐ
+            $lockedRequest = SupportRequest::lockForUpdate()->findOrFail($request->id);
+            $partner = Partner::lockForUpdate()->findOrFail($lockedRequest->partner_id);
+
+            if ($lockedRequest->status !== SupportRequestStatus::Pending->value) {
+                throw new InvalidSupportRequestStateException('pending', $lockedRequest->status);
             }
 
             if ($approvedAmountJpy > $partner->support_pool) {
@@ -754,7 +771,7 @@ class ApproveSupportRequestUseCase
 
             $partner->decrement('support_pool', $approvedAmountJpy);
 
-            $request->update([
+            $lockedRequest->update([
                 'status' => SupportRequestStatus::Approved->value,
                 'approved_amount_jpy' => $approvedAmountJpy,
                 'reviewed_at' => now(),
@@ -836,7 +853,7 @@ class MarkSupportRequestPaidUseCase
 docker compose exec app php artisan test tests/Feature/ReviewSupportRequestTest.php
 ```
 
-Expected: PASS（4件）
+Expected: PASS（5件）
 
 ```bash
 git add app/Domain/Exceptions/InvalidSupportRequestStateException.php app/UseCases/Support/ tests/Feature/ReviewSupportRequestTest.php
@@ -1299,6 +1316,7 @@ Action::make('approve')
         TextInput::make('approved_amount_jpy')
             ->label('承認額（円・部分承認可）')
             ->numeric()->required()
+            ->minValue(1) // 負数はプール増額になるため禁止（UseCase側でも二重にガード）
             ->default(fn ($record) => $record->claimed_amount_jpy),
     ])
     ->requiresConfirmation()
@@ -1382,7 +1400,17 @@ git commit -m "feat(admin): add SupportRequestResource with approve/reject/paid 
 ))}
 ```
 
-> 活用写真のアップロードUI（パートナーが後日追加）はFilamentの編集フォームに `usage_photo_url` のFileUploadを置く最小実装でよい（公開画像なので `public` ディスク）。
+> 活用写真のアップロードUIはFilamentの編集フォームに以下を置く。**画像形式をjpg/pngに限定すること** — 公開ページで `<img>` 表示するため、SVG等を許可するとXSSベクタになる:
+>
+> ```php
+> Forms\Components\FileUpload::make('usage_photo_url')
+>     ->label('活用写真（公開）')
+>     ->disk('public')
+>     ->directory('support-usage')
+>     ->image()
+>     ->acceptedFileTypes(['image/jpeg', 'image/png'])
+>     ->maxSize(5120),
+> ```
 
 - [ ] **Step 2: 全テスト・Lint・ビルド**
 

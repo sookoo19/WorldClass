@@ -11,8 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-06-10-worldclass-phase2.5-open-session-design.md`
 
 **前提:**
-- Phase 2 プラン（`2026-05-24-worldclass-phase2-catalog-booking-stripe.md`）の Task 1（Stripe SDK・`config/services.php` 設定）と Task 5（`app/Services/StripeService.php`）が完了していること
-- Phase 2 プランの `ProcessCancellation` Job（Task 11）は旧スキーマ（school_id）前提のため**実装しない**。本プラン Task 6 の `ProcessSessionCancellation` が置き換える
+- Phase 2 プラン（`2026-05-24-worldclass-phase2-catalog-booking-stripe.md` **2026-06-10改訂版**）完了。流用するコンポーネント: `StripeService::createParticipantCheckout`/`refund`・`WebhookController::handleParticipantCompleted`（participant確定の基盤）・`ExpirePendingApplicationsJob`（オープンの放置pendingも掃除される）
 - すべてのコマンドは `docker compose exec app` 内で実行
 
 ---
@@ -471,7 +470,6 @@ git commit -m "feat(infra): add OpenSessionRepository with remaining-slot counti
 - Create: `app/Domain/Exceptions/ApplicationDeadlinePassedException.php`
 - Create: `app/UseCases/OpenSession/ApplyToOpenSessionInput.php`
 - Create: `app/UseCases/OpenSession/ApplyToOpenSessionUseCase.php`
-- Modify: `app/Services/StripeService.php`
 - Test: `tests/Unit/UseCases/ApplyToOpenSessionUseCaseTest.php`
 
 - [ ] **Step 1: ドメイン例外を作成**
@@ -508,42 +506,9 @@ class ApplicationDeadlinePassedException extends \DomainException
 }
 ```
 
-- [ ] **Step 2: StripeService に participant 用 Checkout メソッドを追加**
+- [ ] **Step 2: StripeService の participant 用 Checkout メソッドを確認**
 
-`app/Services/StripeService.php` に追加（Phase 2 実装済みクラスへの追記）:
-
-```php
-use App\Models\SessionParticipant;
-
-/**
- * オープンセッション参加（participant単位）のCheckout Sessionを作成してURLを返す。
- */
-public function createParticipantCheckout(
-    SessionParticipant $participant,
-    string $successUrl,
-    string $cancelUrl
-): string {
-    $session = $participant->session;
-    $label = "WorldClass オープンセッション（{$session->partner->display_name}）{$session->duration_min}分";
-
-    $checkout = $this->stripe->checkout->sessions->create([
-        'mode'       => 'payment',
-        'line_items' => [[
-            'price_data' => [
-                'currency'     => 'jpy',
-                'product_data' => ['name' => $label],
-                'unit_amount'  => $participant->price_paid,
-            ],
-            'quantity' => 1,
-        ]],
-        'metadata'    => ['participant_id' => (string) $participant->id],
-        'success_url' => $successUrl,
-        'cancel_url'  => $cancelUrl,
-    ]);
-
-    return $checkout->url;
-}
-```
+`StripeService::createParticipantCheckout` は **Phase 2（改訂版）Task 5 で実装済み**（participant単位・metadata `participant_id`・金額は `price_paid`）。存在することを確認するのみ。追加実装は不要。
 
 - [ ] **Step 3: 失敗するユニットテストを書く**
 
@@ -704,6 +669,7 @@ use App\Domain\ValueObjects\SessionStatus;
 use App\Models\Session;
 use App\Models\SessionParticipant;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 
 class ApplyToOpenSessionUseCase
 {
@@ -742,18 +708,26 @@ class ApplyToOpenSessionUseCase
         return $session;
     }
 
-    /** 検証→pending participant作成。Checkout起動はController側でStripeServiceを呼ぶ */
+    /**
+     * 検証→pending participant作成。Checkout起動はController側でStripeServiceを呼ぶ。
+     * セッション行をロックしてから残枠を検証することで、同時申込による超過販売を防ぐ。
+     */
     public function execute(ApplyToOpenSessionInput $input): SessionParticipant
     {
-        $session = $this->validateApplication($input);
+        return DB::transaction(function () use ($input) {
+            // 行ロック: 並行する申込はここで直列化され、残枠カウントが正確になる
+            Session::query()->whereKey($input->sessionId)->lockForUpdate()->first();
 
-        return SessionParticipant::create([
-            'session_id' => $session->id,
-            'member_id' => $input->memberId,
-            'status' => ParticipantStatus::Pending->value,
-            'price_paid' => $session->price_jpy,
-            'support_amount' => (int) floor($session->price_jpy * 0.5),
-        ]);
+            $session = $this->validateApplication($input);
+
+            return SessionParticipant::create([
+                'session_id' => $session->id,
+                'member_id' => $input->memberId,
+                'status' => ParticipantStatus::Pending->value,
+                'price_paid' => $session->price_jpy,
+                'support_amount' => (int) floor($session->price_jpy * 0.5),
+            ]);
+        });
     }
 }
 ```
@@ -1330,9 +1304,9 @@ git commit -m "feat(usecase): add open session formation judgment with hourly sc
 
 ---
 
-## Task 8: Webhook拡張（participant確定・即時成立判定）
+## Task 8: Webhook拡張（オープンセッションの即時成立判定）
 
-Phase 2 の `WebhookController` に participant 確定処理を追加する。
+Phase 2（改訂版）の `WebhookController::handleParticipantCompleted` は participant確定＋`session_type=private` の処理まで実装済み。本Taskでは **`session_type=open` の分岐**（申込完了メール・min_groups到達での即時成立・直前参加のパートナー通知）を追加する。
 
 **Files:**
 - Modify: `app/Http/Controllers/WebhookController.php`
@@ -1362,18 +1336,21 @@ class OpenSessionWebhookTest extends TestCase
 
     private Session $session;
 
-    /** participant_id metadata付きのWebhookペイロードをPOSTする（署名検証はテスト環境ではスキップ設定） */
+    /** Phase 2と同じ方式: testing環境限定の 'bypass' 署名で検証をスキップ */
     private function postWebhook(int $participantId): \Illuminate\Testing\TestResponse
     {
-        $payload = [
+        $payload = json_encode([
             'type' => 'checkout.session.completed',
             'data' => ['object' => [
                 'metadata' => ['participant_id' => (string) $participantId],
                 'payment_intent' => 'pi_webhook_test',
             ]],
-        ];
+        ]);
 
-        return $this->postJson('/stripe/webhook', $payload);
+        return $this->call('POST', '/stripe/webhook', [], [], [], [
+            'HTTP_STRIPE_SIGNATURE' => 'bypass',
+            'CONTENT_TYPE' => 'application/json',
+        ], $payload);
     }
 
     private function makePendingParticipant(int $index, int $minGroups = 3): SessionParticipant
@@ -1445,7 +1422,7 @@ class OpenSessionWebhookTest extends TestCase
 }
 ```
 
-> **注:** Phase 2 のWebhook実装でStripe署名検証が入る。テスト環境では `config('services.stripe.webhook_secret')` が空の場合に検証をスキップする実装になっていることを前提とする（なっていなければWebhookControllerにその分岐を追加する）。
+> **注:** 署名検証はPhase 2（改訂版）の実装をそのまま使う — **fail-closed**（非testing環境でsecret未設定なら500）・bypassは `app()->environment('testing')` 限定。本Taskで署名まわりは変更しない。
 
 - [ ] **Step 2: 失敗確認**
 
@@ -1455,9 +1432,23 @@ docker compose exec app php artisan test tests/Feature/OpenSessionWebhookTest.ph
 
 Expected: FAIL
 
-- [ ] **Step 3: WebhookController に participant 分岐を追加**
+- [ ] **Step 3: `handleParticipantCompleted` に open 分岐を追加**
 
-`app/Http/Controllers/WebhookController.php` の `checkout.session.completed` 処理に追記。`metadata.participant_id` があれば participant 確定フローへ:
+Phase 2（改訂版）の `handleParticipantCompleted` 末尾は以下の形になっている:
+
+```php
+$session = $participant->session;
+
+if ($session->session_type === 'private') {
+    $session->update(['status' => 'confirmed']);
+
+    Mail::to($participant->member->user->email)->queue(new BookingConfirmed($participant));
+    Mail::to($session->partner->user->email)->queue(new BookingReceived($participant));
+}
+// session_type=open の分岐（成立判定・直前参加通知）は Phase 2.5 で追加する
+```
+
+このコメント箇所を **else分岐の実装に置き換える**:
 
 ```php
 use App\Domain\ValueObjects\ParticipantStatus;
@@ -1465,28 +1456,20 @@ use App\Domain\ValueObjects\SessionStatus;
 use App\Mail\OpenSessionApplied;
 use App\Mail\OpenSessionConfirmed;
 use App\Mail\ParticipantJoined;
-use App\Models\SessionParticipant;
-use Illuminate\Support\Facades\Mail;
 
-private function handleParticipantCompleted(array $object): void
-{
-    $participantId = (int) ($object['metadata']['participant_id'] ?? 0);
-    $participant = SessionParticipant::with('session.partner.user', 'member.user')->find($participantId);
+$session = $participant->session;
 
-    if ($participant === null || $participant->status !== ParticipantStatus::Pending->value) {
-        return; // 冪等: 二重Webhook・不明IDは無視
-    }
+if ($session->session_type === 'private') {
+    $session->update(['status' => SessionStatus::Confirmed->value]);
 
-    $participant->update([
-        'status' => ParticipantStatus::Confirmed->value,
-        'stripe_payment_id' => $object['payment_intent'] ?? null,
-    ]);
-
+    Mail::to($participant->member->user->email)->queue(new BookingConfirmed($participant));
+    Mail::to($session->partner->user->email)->queue(new BookingReceived($participant));
+} else {
+    // オープンセッション: 申込完了メール
     Mail::to($participant->member->user->email)->queue(new OpenSessionApplied($participant));
 
-    $session = $participant->session;
-
     if ($session->status === SessionStatus::Open->value) {
+        // 募集中: min_groups到達で即時成立
         $confirmed = $session->participants()
             ->where('status', ParticipantStatus::Confirmed->value)
             ->with('member.user')
@@ -1504,19 +1487,6 @@ private function handleParticipantCompleted(array $object): void
         Mail::to($session->partner->user->email)->queue(new ParticipantJoined($participant));
     }
 }
-```
-
-呼び出し側（既存の `checkout.session.completed` ハンドラ内）:
-
-```php
-$object = $event['data']['object'];
-
-if (isset($object['metadata']['participant_id'])) {
-    $this->handleParticipantCompleted($object);
-
-    return response()->json(['received' => true]);
-}
-// 既存のsession_id（専用セッション）処理が続く
 ```
 
 - [ ] **Step 4: テスト通過確認・コミット**
@@ -1913,8 +1883,8 @@ Forms\Components\Hidden::make('session_type')->default('open'),
 Forms\Components\DateTimePicker::make('scheduled_at')->required(),
 Forms\Components\Select::make('duration_min')->options([45 => '45分', 60 => '60分'])->required(),
 Forms\Components\Select::make('theme')->options([
-    'culture' => '文化交流', 'understanding' => '国際理解', 'english' => '英語学習',
-])->required(),
+    'culture' => '文化交流', 'english' => '英語学習', 'global' => '国際理解',
+])->required(), // App\Domain\ValueObjects\ThemeType のcase値と一致させること
 Forms\Components\TextInput::make('capacity')->numeric()->default(6)->required(),
 Forms\Components\TextInput::make('min_groups')->numeric()->default(3)->required(),
 Forms\Components\Hidden::make('with_facilitator')->default(true),
@@ -1924,7 +1894,7 @@ Forms\Components\Select::make('status')->options([
 ])->default('draft')->required(),
 ```
 
-> `theme` の選択肢は `App\Domain\ValueObjects\ThemeType` のcase値に合わせること（実装時に `ThemeType::cases()` から生成してよい）。
+> `ThemeType` の実値は `culture` / `english` / `global`（実装時に `ThemeType::cases()` から動的生成してもよい）。
 
 テーブル列: `partner.display_name` / `session_type` / `scheduled_at` / `status` / 参加数（`participants_count` を `->counts('participants')` で表示）
 
