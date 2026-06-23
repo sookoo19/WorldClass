@@ -8,6 +8,7 @@ use App\Models\Partner;
 use App\Models\User;
 use App\UseCases\Auth\RegisterPartnerInput;
 use App\UseCases\Auth\RegisterPartnerUseCase;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use Tests\TestCase;
 
@@ -15,6 +16,10 @@ class RegisterPartnerUseCaseTest extends TestCase
 {
     public function test_海外パートナーをpendingステータスで登録する(): void
     {
+        DB::shouldReceive('transaction')
+            ->once()
+            ->andReturnUsing(fn (callable $callback) => $callback());
+
         $user = new User(['name' => 'Maria Santos', 'email' => 'partner@example.com', 'role' => 'partner']);
 
         $userRepo = Mockery::mock(UserRepositoryInterface::class);

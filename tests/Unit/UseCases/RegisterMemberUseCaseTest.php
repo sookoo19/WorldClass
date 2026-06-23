@@ -8,6 +8,7 @@ use App\Models\Member;
 use App\Models\User;
 use App\UseCases\Auth\RegisterMemberInput;
 use App\UseCases\Auth\RegisterMemberUseCase;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use Tests\TestCase;
 
@@ -15,6 +16,10 @@ class RegisterMemberUseCaseTest extends TestCase
 {
     public function test_利用者を登録してmemberロールが付与される(): void
     {
+        DB::shouldReceive('transaction')
+            ->once()
+            ->andReturnUsing(fn (callable $callback) => $callback());
+
         $user = new User(['name' => '田中家', 'email' => 'family@example.com', 'role' => 'member']);
 
         $userRepo = Mockery::mock(UserRepositoryInterface::class);
