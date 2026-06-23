@@ -48,9 +48,8 @@ app/
 │   ├── SessionCancelled.php
 │   └── ParticipantJoined.php
 └── Services/StripeService.php          # 変更: participant用Checkout追加
-resources/js/Pages/OpenSessions/
-├── Index.tsx
-└── Complete.tsx
+# FEページ（OpenSessions/Index・Show・Complete .tsx）と SessionViewPresenter は
+# FEハンズオン計画（2026-06-23）が所有。本phaseはBE（Controller/route/UseCase/Job/Filament）のみ。
 routes/web.php                          # 変更
 routes/console.php                      # 変更: Scheduler登録
 ```
@@ -1511,6 +1510,8 @@ git commit -m "feat(webhook): confirm open session participants and trigger inst
 - Modify: `routes/web.php`
 - Test: `tests/Feature/OpenSessionApplicationTest.php`
 
+> **依存:** `index` / `show` は `App\Http\Presenters\SessionViewPresenter` を使う（**FEハンズオン計画 2026-06-23 Task6 が所有**）。この Task の前に Presenter を実装しておくこと。`show` が render する `OpenSessions/Show` ページ自体は FE 計画 Task7（無くてもテストは props 検証なので通る）。
+
 - [ ] **Step 1: 失敗するテストを書く**
 
 `tests/Feature/OpenSessionApplicationTest.php`:
@@ -1527,6 +1528,7 @@ use App\Models\SessionParticipant;
 use App\Models\User;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Mockery;
 use Tests\TestCase;
 
@@ -1566,6 +1568,41 @@ class OpenSessionApplicationTest extends TestCase
         $this->actingAs($this->makeMemberUser())
             ->get('/open-sessions')
             ->assertOk();
+    }
+
+    public function test_詳細はOpenSessionsShowをhandoff形で返す(): void
+    {
+        $session = $this->makeOpenSession();
+
+        $this->actingAs($this->makeMemberUser())
+            ->get("/open-sessions/{$session->id}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('OpenSessions/Show')
+                ->where('session.id', $session->id)
+                ->where('session.theme', '文化交流')   // SessionViewPresenter で enum→日本語
+                ->where('session.country', 'ケニア')   // Kenya→日本語
+                ->where('session.maxGroups', 6)        // capacity
+                ->where('session.minGroups', 3)
+                ->where('session.groups', 0)           // pending+confirmed なし
+            );
+    }
+
+    public function test_存在しない詳細は404(): void
+    {
+        $this->actingAs($this->makeMemberUser())
+            ->get('/open-sessions/999999')
+            ->assertNotFound();
+    }
+
+    public function test_オープン以外のセッション詳細は404(): void
+    {
+        // findOpenSession は session_type='open' のみ返す（SessionType::Private は対象外）
+        $session = $this->makeOpenSession();
+        $session->update(['session_type' => 'private']);
+
+        $this->actingAs($this->makeMemberUser())
+            ->get("/open-sessions/{$session->id}")
+            ->assertNotFound();
     }
 
     public function test_申込でpending作成しCheckoutへリダイレクトする(): void
@@ -1635,6 +1672,7 @@ use App\Domain\Exceptions\SessionFullException;
 use App\Domain\Repositories\OpenSessionRepositoryInterface;
 use App\Domain\ValueObjects\ParticipantStatus;
 use App\Models\SessionParticipant;
+use App\Http\Presenters\SessionViewPresenter;
 use App\Services\StripeService;
 use App\UseCases\OpenSession\ApplyToOpenSessionInput;
 use App\UseCases\OpenSession\ApplyToOpenSessionUseCase;
@@ -1645,23 +1683,37 @@ use Inertia\Response;
 
 class OpenSessionController extends Controller
 {
-    public function index(OpenSessionRepositoryInterface $repository): Response
-    {
-        $sessions = $repository->listVisible()->map(fn ($s) => [
-            'id' => $s->id,
-            'scheduled_at' => $s->scheduled_at->toIso8601String(),
-            'duration_min' => $s->duration_min,
-            'theme' => $s->theme,
-            'price_jpy' => $s->price_jpy,
-            'partner_name' => $s->partner->display_name,
-            'country' => $s->partner->country,
-            'grade_range' => $s->partner->grade_range,
-            'remaining' => max(0, $s->capacity - $s->active_participants_count),
-            'is_confirmed' => $s->status !== 'open',
-            'can_send_questions' => $s->status === 'open', // 直前参加は質問不可
-        ]);
+    // index / show が render する Page（OpenSessions/Index・OpenSessions/Show）と
+    // データ形（SessionSummary）は FE ハンズオン計画（2026-06-23）が所有する。
+    // ここでは SessionViewPresenter（同計画 Task6）を使って handoff 形の props を渡すだけ。
+    public function index(
+        OpenSessionRepositoryInterface $repository,
+        SessionViewPresenter $presenter,
+    ): Response {
+        $sessions = $repository->listVisible()
+            ->map(fn ($s) => $presenter->summary($s))
+            ->all();
 
         return Inertia::render('OpenSessions/Index', ['sessions' => $sessions]);
+    }
+
+    /** B-2 セッション詳細。FE 計画 Task7 の OpenSessions/Show を render する。 */
+    public function show(
+        int $id,
+        OpenSessionRepositoryInterface $repository,
+        SessionViewPresenter $presenter,
+    ): Response {
+        $session = $repository->findOpenSession($id);
+        abort_if($session === null, 404);
+
+        $session->loadCount(['participants as active_participants_count' => fn ($q) => $q->whereIn('status', [
+            ParticipantStatus::Pending->value, ParticipantStatus::Confirmed->value,
+        ])])->load('partner');
+
+        return Inertia::render('OpenSessions/Show', [
+            'session' => $presenter->summary($session),
+            // detail（動画・先生・物資・アジェンダ）の供給元が決まるまでは渡さず、Page 側の mockDetail を表示する。
+        ]);
     }
 
     public function apply(
@@ -1721,6 +1773,7 @@ use App\Http\Controllers\OpenSessionController;
 
 Route::middleware(['auth', 'role:member'])->group(function () {
     Route::get('/open-sessions', [OpenSessionController::class, 'index'])->name('open-sessions.index');
+    Route::get('/open-sessions/{id}', [OpenSessionController::class, 'show'])->whereNumber('id')->name('open-sessions.show');
     Route::post('/open-sessions/{session}/apply', [OpenSessionController::class, 'apply'])->name('open-sessions.apply');
     Route::get('/open-sessions/complete/{participant}', [OpenSessionController::class, 'complete'])->name('open-sessions.complete');
     Route::get('/open-sessions/apply/cancel/{participant}', [OpenSessionController::class, 'applyCancel'])->name('open-sessions.apply-cancel');
@@ -1742,120 +1795,18 @@ git commit -m "feat(http): add open session listing/application endpoints"
 
 ---
 
-## Task 10: React ページ（Index / Complete）
+## Task 10: React ページ → **FE ハンズオン計画へ移譲（このTaskは実装しない）**
 
-**Files:**
-- Create: `resources/js/Pages/OpenSessions/Index.tsx`
-- Create: `resources/js/Pages/OpenSessions/Complete.tsx`
+> **このTaskのFEページ作成は廃止。** `OpenSessions/Index.tsx`（B-1）・`OpenSessions/Show.tsx`（B-2）・`OpenSessions/Complete.tsx`（B-6）は、確定デザイン（Calm Blue / handoff）を取り込む **FEハンズオン計画 `docs/superpowers/plans/2026-06-23-worldclass-frontend-handson.md`（Task5/7/9）** が唯一の正として実装する。
 
-- [ ] **Step 1: Index.tsx 作成**
+旧版の素 Tailwind ＋ `AuthenticatedLayout` ページは破棄。理由と新しい所有境界:
 
-`resources/js/Pages/OpenSessions/Index.tsx`:
+- **ページ（.tsx）と Presenter は FE 計画が所有。** 本 phase（BE）は Controller・route・UseCase・Job・Filament のみを持つ。
+- Task9 の `OpenSessionController` は、FE 計画 Task6 の `SessionViewPresenter` を使って `OpenSessions/Index` / `OpenSessions/Show` を render する（本 phase の Task9 Step3 に反映済み）。`OpenSessions/Complete` は `@complete` が render（props `{ participantId, scheduledAt }`）。
+- データ形は **handoff の `SessionSummary`**（camelCase・JST 整形済み）。旧版の snake_case 形（`partner_name` / `remaining` / `is_confirmed` / `can_send_questions`）は使わない。
+- 申込ボタンは FE 計画の `OpenSessions/Show` 内で POST `open-sessions.apply` を呼ぶ。
 
-```tsx
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router, usePage } from '@inertiajs/react';
-
-type OpenSession = {
-    id: number;
-    scheduled_at: string;
-    duration_min: number;
-    theme: string;
-    price_jpy: number;
-    partner_name: string;
-    country: string;
-    grade_range: string;
-    remaining: number;
-    is_confirmed: boolean;
-    can_send_questions: boolean;
-};
-
-export default function Index({ sessions }: { sessions: OpenSession[] }) {
-    const { errors } = usePage().props;
-
-    const apply = (id: number) => router.post(`/open-sessions/${id}/apply`);
-
-    return (
-        <AuthenticatedLayout>
-            <Head title="オープンセッション" />
-            <div className="mx-auto max-w-4xl space-y-4 p-6">
-                <h1 className="text-2xl font-bold">オープンセッション一覧</h1>
-                {errors.apply && <p className="text-red-600">{errors.apply}</p>}
-                {sessions.length === 0 && <p>現在募集中のセッションはありません。</p>}
-                {sessions.map((s) => (
-                    <div key={s.id} className="rounded border p-4">
-                        <div className="font-bold">
-                            {s.partner_name}（{s.country}）
-                        </div>
-                        <div>
-                            {new Date(s.scheduled_at).toLocaleString('ja-JP')}・{s.duration_min}分・
-                            {s.theme}・対象 {s.grade_range}
-                        </div>
-                        <div>
-                            残り{s.remaining}枠 / {s.price_jpy.toLocaleString()}円（1グループ・ファシリテーター付き）
-                            {s.is_confirmed && <span className="ml-2 text-green-700">開催確定</span>}
-                        </div>
-                        {!s.can_send_questions && (
-                            <p className="text-sm text-gray-500">
-                                ※質問リストの送信期限を過ぎているため、参加のみとなります
-                            </p>
-                        )}
-                        <button
-                            onClick={() => apply(s.id)}
-                            disabled={s.remaining === 0}
-                            className="mt-2 rounded bg-blue-600 px-4 py-2 text-white disabled:bg-gray-400"
-                        >
-                            {s.remaining === 0 ? '満枠' : '申し込む（決済へ）'}
-                        </button>
-                    </div>
-                ))}
-                <p className="text-sm text-gray-600">
-                    3グループ以上で成立します。成立しなかった場合は全額返金のうえ、10%割引クーポンをお渡しします。
-                </p>
-            </div>
-        </AuthenticatedLayout>
-    );
-}
-```
-
-- [ ] **Step 2: Complete.tsx 作成**
-
-`resources/js/Pages/OpenSessions/Complete.tsx`:
-
-```tsx
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-
-export default function Complete({ participantId, scheduledAt }: { participantId: number; scheduledAt: string }) {
-    return (
-        <AuthenticatedLayout>
-            <Head title="申込完了" />
-            <div className="mx-auto max-w-xl space-y-4 p-6 text-center">
-                <h1 className="text-2xl font-bold">申込が完了しました</h1>
-                <p>申込番号: {participantId}</p>
-                <p>開催日時: {new Date(scheduledAt).toLocaleString('ja-JP')}</p>
-                <p>3グループ以上で成立が確定し、メールでお知らせします。</p>
-                <Link href="/open-sessions" className="text-blue-600 underline">
-                    一覧に戻る
-                </Link>
-            </div>
-        </AuthenticatedLayout>
-    );
-}
-```
-
-- [ ] **Step 3: ビルド確認・コミット**
-
-```bash
-docker compose exec app npm run build
-```
-
-Expected: ビルド成功（型エラーなし）
-
-```bash
-git add resources/js/Pages/OpenSessions/
-git commit -m "feat(ui): add open session list and completion pages"
-```
+→ 本 Task ではコードを書かない。FE は上記 FE 計画を参照。
 
 ---
 
@@ -1949,3 +1900,4 @@ git commit -m "feat(admin): add SessionResource for open session creation and ma
 - 手動キャンセル（運営・Filament） → Task 11 ✅
 - メール4種 → Task 5 ✅
 - 決済失敗時のpending削除 → Task 9 ✅
+- B-1 一覧・B-2 詳細の表示（`index`/`show` を SessionViewPresenter で handoff 形 render・404処理） → Task 9（FEページは FE計画 2026-06-23 Task5/7） ✅

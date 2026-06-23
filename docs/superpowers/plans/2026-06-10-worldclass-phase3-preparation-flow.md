@@ -41,9 +41,8 @@ app/
     ├── ValueObjects/PartnerStatus.php   # 変更: Hidden追加
     └── Exceptions/QuestionDeadlinePassedException.php
 database/migrations/  # sessions・session_participants へのカラム追加
-resources/js/Pages/
-├── Sessions/Checklist.tsx               # 静的当日チェックリスト
-└── Ratings/Create.tsx                   # 評価フォーム
+# FEページ（Sessions/Checklist・Ratings/Create・Partner/SessionDetail .tsx）は
+# FEハンズオン計画（2026-06-23）が所有。本phaseはBE（route/Controller/UseCase/Job/Filament）のみ。
 routes/web.php, routes/console.php
 ```
 
@@ -1163,9 +1162,9 @@ git commit -m "feat(job): add session reminder and completion jobs"
 - Create: `app/Jobs/SendRatingRequestsJob.php`
 - Create: `app/UseCases/Preparation/SubmitRatingUseCase.php`
 - Create: `app/Http/Controllers/RatingController.php`
-- Create: `resources/js/Pages/Ratings/Create.tsx`
 - Modify: `routes/web.php`
 - Test: `tests/Feature/RatingTest.php`
+- ~~`resources/js/Pages/Ratings/Create.tsx`~~ → **FEハンズオン計画 Task10 が所有**（本Taskでは作らない）
 
 - [ ] **Step 1: 失敗するテストを書く**
 
@@ -1498,78 +1497,21 @@ Route::get('/participants/{participant}/rating', [RatingController::class, 'crea
 Route::post('/participants/{participant}/rating', [RatingController::class, 'store'])->name('ratings.store');
 ```
 
-`resources/js/Pages/Ratings/Create.tsx`:
-
-```tsx
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
-
-export default function Create({
-    participantId,
-    scheduledAt,
-    partnerName,
-}: {
-    participantId: number;
-    scheduledAt: string;
-    partnerName: string;
-}) {
-    const { data, setData, post, errors } = useForm({ rating_score: 5, rating_comment: '' });
-
-    const submit = (e: React.FormEvent) => {
-        e.preventDefault();
-        post(`/participants/${participantId}/rating`);
-    };
-
-    return (
-        <AuthenticatedLayout>
-            <Head title="セッション評価" />
-            <form onSubmit={submit} className="mx-auto max-w-xl space-y-4 p-6">
-                <h1 className="text-2xl font-bold">セッションの評価</h1>
-                <p>
-                    {new Date(scheduledAt).toLocaleDateString('ja-JP')}・{partnerName}
-                </p>
-                <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                            type="button"
-                            key={n}
-                            onClick={() => setData('rating_score', n)}
-                            className={`text-3xl ${n <= data.rating_score ? 'text-yellow-500' : 'text-gray-300'}`}
-                            aria-label={`星${n}`}
-                        >
-                            ★
-                        </button>
-                    ))}
-                </div>
-                {errors.rating_score && <p className="text-red-600">{errors.rating_score}</p>}
-                <textarea
-                    value={data.rating_comment}
-                    onChange={(e) => setData('rating_comment', e.target.value)}
-                    placeholder="コメント（任意）"
-                    className="w-full rounded border p-2"
-                    rows={4}
-                />
-                <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-                    送信する
-                </button>
-            </form>
-        </AuthenticatedLayout>
-    );
-}
-```
+> **`resources/js/Pages/Ratings/Create.tsx`（評価フォーム）は本Taskでは作らない。** Calm Blue 版を **FEハンズオン計画 `docs/superpowers/plans/2026-06-23-worldclass-frontend-handson.md` Task10** が所有・実装する。
+>
+> 本Taskは BE のみ（`RatingController@create/store` ＋ route）。Controller は component `Ratings/Create` を、props `{ participantId: number; scheduledAt: string; partnerName: string }` で render し、送信は `{ rating_score, rating_comment }` を受ける（FE 計画 Task10 の「BE 接続契約」と一致させること）。
 
 - [ ] **Step 6: テスト通過確認・コミット**
 
 ```bash
 docker compose exec app php artisan test tests/Feature/RatingTest.php
-docker compose exec app npm run build
 ```
 
-Expected: PASS（6件）・ビルド成功
+Expected: PASS（6件）
 
 ```bash
-git add app/Jobs/SendRatingRequestsJob.php app/UseCases/Preparation/SubmitRatingUseCase.php app/Http/Controllers/RatingController.php resources/js/Pages/Ratings/ routes/web.php tests/Feature/RatingTest.php
-git commit -m "feat(rating): add rating request job, submission flow and partner quality rules"
+git add app/Jobs/SendRatingRequestsJob.php app/UseCases/Preparation/SubmitRatingUseCase.php app/Http/Controllers/RatingController.php routes/web.php tests/Feature/RatingTest.php
+git commit -m "feat(rating): add rating request job and submission flow (BE)"
 ```
 
 ---
@@ -1578,9 +1520,9 @@ git commit -m "feat(rating): add rating request job, submission flow and partner
 
 **Files:**
 - Modify: `routes/console.php` / `routes/web.php`
-- Create: `resources/js/Pages/Sessions/Checklist.tsx`
 - Modify: `app/Filament/Resources/SessionResource.php`（meeting_url）
 - Modify: PartnerResource（penalty加算アクション）
+- ~~`resources/js/Pages/Sessions/Checklist.tsx` / `resources/js/Pages/Partner/SessionDetail.tsx`~~ → **FEハンズオン計画 Task11/12 が所有**（本Taskでは作らない。route と Controller のみ）
 
 - [ ] **Step 1: Scheduler登録**
 
@@ -1594,37 +1536,9 @@ Schedule::job(new \App\Jobs\CompleteFinishedSessionsJob)->hourly();
 Schedule::job(new \App\Jobs\SendRatingRequestsJob)->hourly();
 ```
 
-- [ ] **Step 2: 当日チェックリスト静的ページ**
+- [ ] **Step 2: 当日チェックリスト（ルートのみ。ページは FE 計画）**
 
-`resources/js/Pages/Sessions/Checklist.tsx`:
-
-```tsx
-import { Head } from '@inertiajs/react';
-
-const items = [
-    'カメラ・マイクの動作を確認した',
-    '安定したネット回線（有線または良好なWi-Fi）を用意した',
-    'Zoomアプリを最新版に更新した',
-    '開始10分前に入室できるよう準備した',
-    '送信した質問リストを手元に用意した',
-];
-
-export default function Checklist() {
-    return (
-        <>
-            <Head title="当日チェックリスト" />
-            <div className="mx-auto max-w-xl space-y-4 p-6">
-                <h1 className="text-2xl font-bold">セッション当日チェックリスト</h1>
-                <ul className="list-disc space-y-2 pl-6">
-                    {items.map((item) => (
-                        <li key={item}>{item}</li>
-                    ))}
-                </ul>
-            </div>
-        </>
-    );
-}
-```
+> **`Sessions/Checklist.tsx` は本Taskでは作らない。** Calm Blue 版を **FEハンズオン計画 Task11** が所有・実装する（component `Sessions/Checklist`・props なし）。本Taskは route 登録のみ。
 
 `routes/web.php`（認証不要）:
 
@@ -1662,47 +1576,9 @@ public function show(Request $request, Session $session): \Inertia\Response
 Route::get('/partner/sessions/{session}', [SessionReadyController::class, 'show'])->name('partner.sessions.show');
 ```
 
-`resources/js/Pages/Partner/SessionDetail.tsx`:
-
-```tsx
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
-
-type Props = {
-    session: {
-        id: number;
-        scheduled_at: string;
-        status: string;
-        questions: { id: number; question_list: string }[];
-    };
-};
-
-export default function SessionDetail({ session }: Props) {
-    const markReady = () => router.post(`/partner/sessions/${session.id}/ready`);
-
-    return (
-        <AuthenticatedLayout>
-            <Head title="Session detail" />
-            <div className="mx-auto max-w-2xl space-y-4 p-6">
-                <h1 className="text-2xl font-bold">Session: {new Date(session.scheduled_at).toLocaleString()}</h1>
-                <h2 className="font-bold">Questions from participants</h2>
-                {session.questions.length === 0 && <p>No questions yet.</p>}
-                {session.questions.map((q) => (
-                    <div key={q.id} className="whitespace-pre-wrap rounded border p-3">
-                        {q.question_list}
-                    </div>
-                ))}
-                {session.status === 'confirmed' && (
-                    <button onClick={markReady} className="rounded bg-green-600 px-4 py-2 text-white">
-                        Mark as Ready
-                    </button>
-                )}
-                {session.status === 'ready' && <p className="text-green-700">Ready ✓</p>}
-            </div>
-        </AuthenticatedLayout>
-    );
-}
-```
+> **`resources/js/Pages/Partner/SessionDetail.tsx` は本Taskでは作らない。** Calm Blue ＋日本語版を **FEハンズオン計画 Task12** が所有・実装する。component `Partner/SessionDetail`、props は上の `show()` が返す `{ session: { id, scheduled_at, status, questions[] } }`、ready 送信は POST `/partner/sessions/{id}/ready`（FE 計画 Task12 の「BE 接続契約」と一致させること）。
+>
+> 旧版（英語 UI・`AuthenticatedLayout`・素 Tailwind）は破棄。全 UI 文言は日本語（プロジェクト規約）。
 
 - [ ] **Step 4: Filament拡張**
 
@@ -1809,7 +1685,7 @@ git commit -m "feat(preparation): wire scheduler, checklist page, partner questi
 
 ## セルフレビュー（スペックカバレッジ）
 
-- 質問送信・3日前12時締切・期限後ロック → Task 2, 3（ロックはUseCase検証＋フロントは`can_send_questions`） ✅
+- 質問送信・3日前12時締切・期限後ロック → Task 2, 3（ロックは UseCase 検証で担保。FE で締切表示が必要なら別途 props を足す） ✅
 - readyチェック（confirmed→ready） → Task 3 ✅
 - 3日前催促＋運営アラート → Task 5 ✅
 - 前日12時自動キャンセル（返金・クーポン） → Task 6（ProcessSessionCancellation流用） ✅
