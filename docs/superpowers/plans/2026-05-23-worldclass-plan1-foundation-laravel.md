@@ -6,12 +6,21 @@
 
 **Architecture:** クリーンアーキテクチャ（Domain / UseCase / Infrastructure / Http）。フロントはInertia.js + React + TypeScript。管理画面はFilament v4。
 
-**Tech Stack:** Laravel 13, Inertia.js, React, TypeScript, Filament v4, PostgreSQL 16, Redis 7, Nginx, Docker Compose, Pest（TDD）, Larastan level 5, Pint
+**Tech Stack:** Laravel 13, Inertia.js, React, TypeScript, Filament v4, PostgreSQL 16, Redis 7, Nginx, Docker Compose, PHPUnit（TDD・Laravel 13はPest未対応のためクラス形式）, Larastan level 5, Pint
 
 **DB設計:** → [`../specs/2026-05-29-worldclass-db-design.md`](../specs/2026-05-29-worldclass-db-design.md)（ER図: `2026-05-29-worldclass-db-er.drawio`）
 **Engineering Principles:** → [`../specs/2026-05-25-worldclass-engineering-principles.md`](../specs/2026-05-25-worldclass-engineering-principles.md)
 
 > **⚠️ 重要な仕様変更（2026-05-29）:** 旧プランの `schools` / `RegisterSchool*` 命名は廃止。LP仕様に合わせ **日本側利用者 = `members`（type区分）**、**海外側 = `partners`（provider_type区分）**、**予約 = `sessions`（枠）+ `session_participants`（参加グループ）** に再設計済み。本プランは新設計に準拠する。
+
+> **📌 dig確定判断（2026-06-12）:**
+> ① 登録UseCaseのトランザクション化＋`user_id` unique制約＋旧`RegistrationTest.php`清算＋pending審査中バナー → **Task 8.5に統合**
+> ② `EnsurePartnerApproved` ミドルウェアは Phase 2 冒頭で新設（Phase 1はバナーのみ）
+> ③ 日時はUTC保存・閲覧者TZ変換（`partners.timezone` カラムは Phase 2 マイグレーションで追加）
+> ④ UIテキストは**全部日本語**（パートナー向け含む。lang分岐なし）
+> ⑤ メール検証は Phase 2 前に `MustVerifyEmail` 強制（既存判断メモどおり）
+> ⑥ `$table->enum()` → `string`＋backed enum cast → **Task 8.6 新設**
+> ⑦ テストコードは PHPUnit クラス形式（Pestは Laravel 13 未対応）
 
 ---
 
@@ -25,10 +34,12 @@
 | Task 3 | GitHub Actions CI（test + larastan level5 + pint） | ✅ 完了（CI green確認済み） |
 | Task 4 | DBマイグレーション（新設計・全7テーブル） | ✅ 完了（全7テーブル、マイグレーション適用済み） |
 | Task 5 | クリーンアーキ骨格（Domain/UseCase/Infrastructure） | ✅ 完了（テスト25件pass・Larastan通過） |
-| Task 6 | TDD UseCaseユニットテスト | ⬜ |
-| Task 7 | ロール保護ミドルウェア | ⬜ |
-| Task 8 | 登録フォーム（Controller→UseCase, .tsx） | ⬜ |
-| Task 9 | Feature Test（登録フロー） | ⬜ |
+| Task 6 | TDD UseCaseユニットテスト | ✅ 完了（65870a8） |
+| Task 7 | ロール保護ミドルウェア | ✅ 完了（cfe0a46） |
+| Task 8 | 登録フォーム（Controller→UseCase, .tsx・UI全部日本語） | 🔶 途中（FormRequest・Controller・ルート済み: 5f3f612。**RegisterMember.tsx / RegisterPartner.tsx 未作成**） |
+| Task 8.5 | 登録まわり修正一括（死にルート・throttle・トランザクション・unique制約・旧テスト清算・審査中バナー） | ⬜ |
+| Task 8.6 | enum()→string＋backed enum cast 化 | ⬜ |
+| Task 9 | Feature Test（登録フロー・PHPUnit） | ⬜ |
 | Task 10 | AdminUserSeeder | ⬜ |
 | Task 11 | Filament PartnerResource（審査画面） | ⬜ |
 
@@ -1468,8 +1479,8 @@ const THEMES = [
 ] as const
 
 const PROVIDER_TYPES = [
-  { value: 'overseas_school', label: 'Overseas School' },
-  { value: 'local_japanese', label: 'Local Japanese' },
+  { value: 'overseas_school', label: '海外校' },
+  { value: 'local_japanese', label: '現地で活動する日本人' },
 ] as const
 
 export default function RegisterPartner() {
@@ -1500,10 +1511,10 @@ export default function RegisterPartner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow">
-        <h1 className="text-2xl font-bold mb-6">Partner Registration</h1>
+        <h1 className="text-2xl font-bold mb-6">海外パートナー登録</h1>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Provider Type</label>
+            <label className="block text-sm font-medium mb-1">提供者タイプ</label>
             <select
               value={data.provider_type}
               onChange={(e) => setData('provider_type', e.target.value)}
@@ -1516,14 +1527,14 @@ export default function RegisterPartner() {
           </div>
 
           {[
-            { label: 'Display Name (School / Activist)', field: 'display_name', type: 'text' },
-            { label: 'Country', field: 'country', type: 'text' },
-            { label: 'Region', field: 'region', type: 'text' },
-            { label: 'Contact Name', field: 'contact_name', type: 'text' },
-            { label: 'Grade Range', field: 'grade_range', type: 'text' },
-            { label: 'Email', field: 'email', type: 'email' },
-            { label: 'Password', field: 'password', type: 'password' },
-            { label: 'Confirm Password', field: 'password_confirmation', type: 'password' },
+            { label: '表示名（学校名 / 活動名）', field: 'display_name', type: 'text' },
+            { label: '国', field: 'country', type: 'text' },
+            { label: '地域', field: 'region', type: 'text' },
+            { label: '担当者名', field: 'contact_name', type: 'text' },
+            { label: '対象学年', field: 'grade_range', type: 'text' },
+            { label: 'メールアドレス', field: 'email', type: 'email' },
+            { label: 'パスワード', field: 'password', type: 'password' },
+            { label: 'パスワード（確認）', field: 'password_confirmation', type: 'password' },
           ].map(({ label, field, type }) => (
             <div key={field}>
               <label className="block text-sm font-medium mb-1">{label}</label>
@@ -1540,7 +1551,7 @@ export default function RegisterPartner() {
           ))}
 
           <div>
-            <label className="block text-sm font-medium mb-1">Themes</label>
+            <label className="block text-sm font-medium mb-1">対応テーマ</label>
             <div className="flex gap-2 flex-wrap">
               {THEMES.map((theme) => (
                 <button
@@ -1565,7 +1576,7 @@ export default function RegisterPartner() {
             disabled={processing}
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            Register
+            登録する
           </button>
         </form>
       </div>
@@ -1589,92 +1600,315 @@ git commit -m "feat(auth): add member/partner registration via UseCase with Form
 
 ---
 
+## Task 8.5: 登録まわりのセキュリティ・整合性修正（2026-06-10レビュー＋2026-06-12 digで拡張）
+
+**Files:**
+- Modify: `routes/auth.php`
+- Modify: `app/UseCases/Auth/RegisterMemberUseCase.php` / `app/UseCases/Auth/RegisterPartnerUseCase.php`（トランザクション化）
+- Modify: `tests/Unit/UseCases/RegisterMemberUseCaseTest.php` / `RegisterPartnerUseCaseTest.php`（DB Facadeモック追加）
+- Create: `database/migrations/xxxx_add_unique_user_id_to_members_and_partners.php`
+- Modify: `app/Http/Controllers/DashboardController.php` / `resources/js/Pages/Dashboard/Partner.tsx`（審査中バナー）
+- Delete: `tests/Feature/Auth/RegistrationTest.php`（旧Breezeテスト・存在しない `GET/POST /register` 前提）
+- Delete: `resources/js/Pages/Auth/Register.jsx`（Breeze残骸・遷移元なしを確認のうえ）
+
+- [ ] **Step 1: 死にルートの削除**
+
+`routes/auth.php` から以下を削除する。`RegisteredUserController::store` は member/partner 分割時に削除済みのため、このルートはPOSTすると即エラーになる:
+
+```php
+Route::post('register', [RegisteredUserController::class, 'store']);  // ← 削除
+```
+
+- [ ] **Step 2: 登録POSTにレート制限を追加**
+
+bot による大量アカウント作成を防ぐ。`routes/auth.php` の登録POST 2本に `throttle` を付与:
+
+```php
+Route::post('register/member', [RegisteredUserController::class,
+    'storeMember'])->middleware('throttle:5,1');
+
+Route::post('register/partner', [RegisteredUserController::class,
+    'storePartner'])->middleware('throttle:5,1');
+```
+
+- [ ] **Step 3: Breeze残骸の `Register.jsx` を削除**
+
+`resources/js/Pages/Auth/Register.jsx` への遷移が残っていないことを確認（`grep -rn "Auth/Register'" resources/js/` で参照ゼロ）してから削除。`Login.jsx` 内に `route('register')` リンクがある場合は `register.member` へ差し替える。
+
+- [ ] **Step 4: 旧 `RegistrationTest.php` の削除**
+
+`tests/Feature/Auth/RegistrationTest.php` は `GET /register`（ルート自体が存在しない）と `POST /register`（Step 1で削除）を前提とした旧Breezeテストで、Step 1実施後は確実に赤になる。削除する（代替はTask 9の `RegisterMemberTest` / `RegisterPartnerTest`）。
+
+- [ ] **Step 5: 登録UseCaseのトランザクション化（🔴→🟢）**
+
+現状はUser作成→プロフィール作成が非トランザクション。2件目のINSERTが失敗すると「メールだけ取られた孤児ユーザー」が残り、`unique:users` により**そのメールで再登録不能**になる。`RegisterMemberUseCase` / `RegisterPartnerUseCase` の `execute()` 全体を `DB::transaction` でラップする:
+
+```php
+use Illuminate\Support\Facades\DB;
+
+public function execute(RegisterMemberInput $input): RegisterMemberOutput
+{
+    return DB::transaction(function () use ($input) {
+        // 既存の User作成 → Member作成 処理をそのまま中に移動
+    });
+}
+```
+
+> クリーンアーキ的にはTransactionインターフェース注入が純粋だが、MVPでは過剰のためFacade直書きを許容（2026-06-12判断）。
+
+**既存Unitテストへの影響:** `tests/Unit/UseCases/` のテストは `Tests\TestCase` 継承だがDB未接続。`DB::transaction` が実DBに繋ごうとして落ちるため、各テストの冒頭でFacadeをモックする:
+
+```php
+DB::shouldReceive('transaction')
+    ->andReturnUsing(fn (callable $callback) => $callback());
+```
+
+- [ ] **Step 6: `user_id` unique制約マイグレーション**
+
+`members.user_id` / `partners.user_id` は現状plain FKで、DB上は1ユーザーに複数プロフィールを許してしまう（`hasOne` の1:1前提と不整合）。
+
+Run: `docker compose exec app php artisan make:migration add_unique_user_id_to_members_and_partners`
+
+```php
+public function up(): void
+{
+    Schema::table('members', function (Blueprint $table) {
+        $table->unique('user_id');
+    });
+    Schema::table('partners', function (Blueprint $table) {
+        $table->unique('user_id');
+    });
+}
+
+public function down(): void
+{
+    Schema::table('members', function (Blueprint $table) {
+        $table->dropUnique(['user_id']);
+    });
+    Schema::table('partners', function (Blueprint $table) {
+        $table->dropUnique(['user_id']);
+    });
+}
+```
+
+Run: `docker compose exec app php artisan migrate`
+
+- [ ] **Step 7: pendingパートナーに「審査中」バナー（dig判断②）**
+
+登録直後のパートナーは `status=pending` のまま即ログイン・ダッシュボード遷移する。Phase 1ではバナー表示のみ対応（行動制限の `EnsurePartnerApproved` ミドルウェアはPhase 2冒頭）。
+
+`DashboardController` のpartnerアクションでstatusを渡す（実装の形に合わせて調整）:
+
+```php
+return Inertia::render('Dashboard/Partner', [
+    'status' => Auth::user()->partner?->status,
+]);
+```
+
+`resources/js/Pages/Dashboard/Partner.tsx`:
+
+```tsx
+export default function PartnerDashboard({ status }: { status: string }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      {status === 'pending' && (
+        <p className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded">
+          現在審査中です。承認されるとセッションを提供できるようになります。
+        </p>
+      )}
+      <h1 className="text-2xl font-bold">パートナーダッシュボード</h1>
+    </div>
+  )
+}
+```
+
+※既存 `Partner.tsx` の見出しが `Partner Dashboard`（英語）の場合は日本語へ差し替え（dig判断④）。
+
+- [ ] **Step 8: テスト・コミット**
+
+```bash
+docker compose exec app php artisan test
+```
+
+Expected: 全PASS（旧RegistrationTest削除済みのため赤なし）
+
+```bash
+git add routes/auth.php resources/js/ app/UseCases/ app/Http/Controllers/ database/migrations/ tests/
+git commit -m "fix(auth): harden registration (dead route, throttle, transaction, unique user_id, pending banner)"
+```
+
+> **メール検証について（判断メモ）:** `User` の `MustVerifyEmail` は現在無効（Breezeデフォルト）。`Registered` イベントで検証メール自体は送られるが、未検証でもダッシュボードに入れる。MVPでは非強制のままとし、強制する場合は `User implements MustVerifyEmail` ＋ dashboardルートに `verified` ミドルウェアを追加する（決済を伴うPhase 2前に再検討。2026-06-12 digで「Phase 2前に強制」を確定）。
+
+---
+
+## Task 8.6: enum() → string ＋ backed enum cast（2026-06-12 dig判断⑥）
+
+**理由:** PostgreSQLで `$table->enum()` はCHECK制約として実装される。`sessions.status` は既に6状態あり、Phase 3以降の状態追加のたびに制約変更マイグレーションが必要になる負債。**本番データがない今が変更最安**のため、既存マイグレーションを直接編集して `migrate:fresh` で作り直す。
+
+**Files:**
+- Modify: `database/migrations/`（`enum()` 使用箇所すべて）
+- Modify: `app/Models/Partner.php` 等（casts追加・任意適用）
+
+- [ ] **Step 1: 既存マイグレーションの `enum()` を `string()` へ置換**
+
+対象（`grep -rn "enum(" database/migrations/` で全件確認）:
+
+- `users.role` / `members.type` / `partners.provider_type` / `partners.status` / `sessions.session_type` / `sessions.status` / `session_participants.status` / `support_requests.status` / `coupons.reason`
+
+```php
+// 例: 変更前
+$table->enum('status', ['pending', 'approved', 'suspended', 'rejected'])->default('pending');
+// 変更後（default はそのまま維持）
+$table->string('status')->default('pending');
+```
+
+許容値の担保はFormRequestのバリデーション（`Rule::enum()` / `Rule::in()`）が担う。各FormRequestに許容値ルールがあることを確認する。
+
+- [ ] **Step 2: backed enum cast（必要な列のみ・任意適用）**
+
+Task 5-1 の `app/Domain/ValueObjects/` のPHP enumをモデルcastに流用できる（Model→Domainの依存はクリーンアーキの方向として正しい）:
+
+```php
+// app/Models/Partner.php
+protected function casts(): array
+{
+    return ['status' => PartnerStatus::class];
+}
+```
+
+> **⚠️ `users.role` はcastしない。** `EnsureRole` が `in_array(Auth::user()->role, $roles, true)` と文字列厳密比較しており、castするとenum instanceになり全認可が壊れる。castを入れるなら比較箇所の修正とセットで（MVPではstringのままが安全）。castした列はテストの比較も `->value` になる点に注意。
+
+- [ ] **Step 3: DB再構築・検証**
+
+```bash
+docker compose exec app php artisan migrate:fresh --seed
+docker compose exec app php artisan test
+docker compose exec app ./vendor/bin/phpstan analyse  # Larastan
+```
+
+Expected: マイグレーション成功・全テストPASS
+
+- [ ] **Step 4: コミット**
+
+```bash
+git add database/migrations/ app/Models/
+git commit -m "refactor(db): replace enum columns with string + backed enum casts"
+```
+
+---
+
 ## Task 9: Feature Test — 登録フロー
 
 **Files:**
 - Create: `tests/Feature/Auth/RegisterMemberTest.php`
 - Create: `tests/Feature/Auth/RegisterPartnerTest.php`
 
-- [ ] **Step 1: `tests/Feature/Auth/RegisterMemberTest.php`（🔴）**
+- [ ] **Step 1: `tests/Feature/Auth/RegisterMemberTest.php`（🔴・PHPUnitクラス形式）**
 
 ```php
 <?php
+
+namespace Tests\Feature\Auth;
 
 use App\Models\Member;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
-it('利用者（ご家庭）が登録できる', function () {
-    $response = $this->post('/register/member', [
-        'email'                 => 'family@example.com',
-        'password'              => 'Password123!',
-        'password_confirmation' => 'Password123!',
-        'name'                  => '田中家',
-        'type'                  => 'family',
-        'org_name'              => null,
-        'prefecture'            => '東京都',
-        'contact_name'          => '田中太郎',
-        'grade_range'           => '小4〜6年',
-    ]);
+class RegisterMemberTest extends TestCase
+{
+    use RefreshDatabase;
 
-    $response->assertRedirect('/member/dashboard');
+    public function test_利用者の家庭が登録できる(): void
+    {
+        $response = $this->post('/register/member', [
+            'email'                 => 'family@example.com',
+            'password'              => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'name'                  => '田中家',
+            'type'                  => 'family',
+            'org_name'              => null,
+            'prefecture'            => '東京都',
+            'contact_name'          => '田中太郎',
+            'grade_range'           => '小4〜6年',
+        ]);
 
-    $user = User::where('email', 'family@example.com')->first();
-    expect($user)->not->toBeNull();
-    expect($user->role)->toBe('member');
-    expect(Member::where('user_id', $user->id)->where('type', 'family')->exists())->toBeTrue();
-});
+        $response->assertRedirect('/member/dashboard');
 
-it('重複メールで登録するとバリデーションエラー', function () {
-    User::factory()->create(['email' => 'dup@example.com']);
+        $user = User::where('email', 'family@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertSame('member', $user->role);
+        $this->assertTrue(
+            Member::where('user_id', $user->id)->where('type', 'family')->exists()
+        );
+    }
 
-    $response = $this->post('/register/member', [
-        'email'                 => 'dup@example.com',
-        'password'              => 'Password123!',
-        'password_confirmation' => 'Password123!',
-        'name'                  => 'テスト塾',
-        'type'                  => 'cram_school',
-        'org_name'              => 'テスト塾',
-        'prefecture'            => '東京都',
-        'contact_name'          => '山田',
-        'grade_range'           => null,
-    ]);
+    public function test_重複メールで登録するとバリデーションエラー(): void
+    {
+        User::factory()->create(['email' => 'dup@example.com']);
 
-    $response->assertSessionHasErrors('email');
-});
+        $response = $this->post('/register/member', [
+            'email'                 => 'dup@example.com',
+            'password'              => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'name'                  => 'テスト塾',
+            'type'                  => 'cram_school',
+            'org_name'              => 'テスト塾',
+            'prefecture'            => '東京都',
+            'contact_name'          => '山田',
+            'grade_range'           => null,
+        ]);
+
+        $response->assertSessionHasErrors('email');
+    }
+}
 ```
 
-- [ ] **Step 2: `tests/Feature/Auth/RegisterPartnerTest.php`（🔴）**
+- [ ] **Step 2: `tests/Feature/Auth/RegisterPartnerTest.php`（🔴・PHPUnitクラス形式）**
 
 ```php
 <?php
 
+namespace Tests\Feature\Auth;
+
 use App\Models\Partner;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
-it('海外パートナーがpendingステータスで登録される', function () {
-    $response = $this->post('/register/partner', [
-        'email'                 => 'partner@example.com',
-        'password'              => 'Password123!',
-        'password_confirmation' => 'Password123!',
-        'provider_type'         => 'overseas_school',
-        'display_name'          => 'Sunshine Elementary',
-        'country'               => 'ケニア',
-        'region'                => 'Nairobi',
-        'contact_name'          => 'Maria Santos',
-        'themes'                => ['culture', 'global'],
-        'grade_range'           => 'Grade 4-6',
-    ]);
+class RegisterPartnerTest extends TestCase
+{
+    use RefreshDatabase;
 
-    $response->assertRedirect('/partner/dashboard');
+    public function test_海外パートナーがpendingステータスで登録される(): void
+    {
+        $response = $this->post('/register/partner', [
+            'email'                 => 'partner@example.com',
+            'password'              => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'provider_type'         => 'overseas_school',
+            'display_name'          => 'Sunshine Elementary',
+            'country'               => 'ケニア',
+            'region'                => 'Nairobi',
+            'contact_name'          => 'Maria Santos',
+            'themes'                => ['culture', 'global'],
+            'grade_range'           => 'Grade 4-6',
+        ]);
 
-    $user = User::where('email', 'partner@example.com')->first();
-    expect($user->role)->toBe('partner');
+        $response->assertRedirect('/partner/dashboard');
 
-    $partner = Partner::where('user_id', $user->id)->first();
-    expect($partner->status)->toBe('pending');
-    expect($partner->themes)->toContain('culture');
-});
+        $user = User::where('email', 'partner@example.com')->first();
+        $this->assertSame('partner', $user->role);
+
+        $partner = Partner::where('user_id', $user->id)->first();
+        // Task 8.6 で status にbacked enum castを適用済みなら ->value で比較、未適用なら $partner->status を直接比較
+        $this->assertSame('pending', $partner->status->value);
+        $this->assertContains('culture', $partner->themes);
+    }
+}
 ```
+
+> **throttleとの共存メモ:** Task 8.5で登録POSTに `throttle:5,1` を付与済み。本テストのPOSTは計3回で上限内のため対応不要だが、テストを増やす場合は `RateLimiter` のクリア or `withoutMiddleware(ThrottleRequests::class)` を検討。
 
 - [ ] **Step 3: テスト実行（🟢）**
 
@@ -1715,18 +1949,37 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
+        // パスワードのハードコード禁止: リポジトリは公開され得る・本番seedで既知弱パスワードの
+        // admin（Filament全権）が作られる事故を防ぐため、envから必須で受け取る
+        $password = env('ADMIN_SEED_PASSWORD');
+
+        if (! $password) {
+            $this->command->warn('ADMIN_SEED_PASSWORD が未設定のため管理者ユーザーを作成しません。');
+
+            return;
+        }
+
+        $email = env('ADMIN_SEED_EMAIL', 'admin@worldclass.jp');
+
         User::updateOrCreate(
-            ['email' => 'admin@worldclass.jp'],
+            ['email' => $email],
             [
                 'name'     => 'WorldClass Admin',
-                'password' => Hash::make('admin123456'),
+                'password' => Hash::make($password),
                 'role'     => 'admin',
             ]
         );
 
-        $this->command->info('Admin user: admin@worldclass.jp / admin123456');
+        $this->command->info("Admin user created: {$email}");
     }
 }
+```
+
+`.env` に追記し、`.env.example` にはキー名のみ追加:
+
+```env
+ADMIN_SEED_EMAIL=admin@worldclass.jp
+ADMIN_SEED_PASSWORD=   # ローカル用の任意の強いパスワード（コミットしない）
 ```
 
 - [ ] **Step 3: `database/seeders/DatabaseSeeder.php` に登録**
@@ -1741,7 +1994,7 @@ public function run(): void
 - [ ] **Step 4: Seeder実行**
 
 Run: `docker compose exec app php artisan db:seed`
-Expected: `Admin user: admin@worldclass.jp / admin123456`
+Expected: `Admin user created: admin@worldclass.jp`（`ADMIN_SEED_PASSWORD` 設定済みの場合）
 
 - [ ] **Step 5: コミット**
 
@@ -1786,7 +2039,7 @@ Run: `docker compose exec app php artisan make:filament-resource Partner --gener
 
 - [ ] **Step 3: 動作確認**
 
-`http://localhost/admin` → `admin@worldclass.jp / admin123456` でログイン → Partners一覧でステータス変更ができる。
+`http://localhost/admin` → `.env` の `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` でログイン → Partners一覧でステータス変更ができる。
 
 - [ ] **Step 4: Pint・Larastan・コミット**
 
@@ -1821,6 +2074,8 @@ git commit -m "feat(admin): add Filament partner review resource"
 
 ```
 Task 4（DB）→ Task 5（Clean Arch骨格）→ Task 6（Unit Test）
-→ Task 7（Middleware）→ Task 8（Controller/UseCase/Form）
-→ Task 9（Feature Test）→ Task 10（Seeder）→ Task 11（Filament Resource）
+→ Task 7（Middleware）→ Task 8（Controller/UseCase/Form・UI日本語）
+→ Task 8.5（登録修正一括: 死にルート/throttle/トランザクション/unique/旧テスト清算/審査中バナー）
+→ Task 8.6（enum→string＋backed enum cast）
+→ Task 9（Feature Test・PHPUnit）→ Task 10（Seeder）→ Task 11（Filament Resource）
 ```

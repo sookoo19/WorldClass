@@ -349,7 +349,7 @@ class SlotServiceTest extends TestCase
 
         $user = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
         $this->partner = Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $user->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -702,7 +702,7 @@ class CatalogControllerTest extends TestCase
         $user = User::create(['name' => 'P', 'email' => uniqid().'@example.com', 'password' => 'x', 'role' => 'partner']);
 
         return Partner::create([
-            'user_id' => $user->id, 'provider_type' => 'school', 'display_name' => 'School '.$country,
+            'user_id' => $user->id, 'provider_type' => 'overseas_school', 'display_name' => 'School '.$country,
             'country' => $country, 'region' => 'R', 'contact_name' => 'T', 'status' => $status,
             'themes' => ['culture', 'english'], 'grade_range' => '1-6',
         ]);
@@ -1156,7 +1156,7 @@ class BookingControllerTest extends TestCase
 
         $pUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
         $this->partner = Partner::create([
-            'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -1823,7 +1823,7 @@ class WebhookControllerTest extends TestCase
     {
         $pUser = User::create(['name' => 'P', 'email' => 'p@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
@@ -2043,7 +2043,7 @@ class ExpirePendingApplicationsJobTest extends TestCase
     {
         $pUser = User::create(['name' => 'P', 'email' => uniqid().'@example.com', 'password' => 'x', 'role' => 'partner']);
         $partner = Partner::create([
-            'user_id' => $pUser->id, 'provider_type' => 'school', 'display_name' => 'S',
+            'user_id' => $pUser->id, 'provider_type' => 'overseas_school', 'display_name' => 'S',
             'country' => 'Kenya', 'region' => 'N', 'contact_name' => 'T', 'status' => 'approved',
             'themes' => ['culture'], 'grade_range' => '1-6',
         ]);
