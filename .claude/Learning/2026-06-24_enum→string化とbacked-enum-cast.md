@@ -204,3 +204,90 @@ class RegisterMemberTest extends TestCase
 
 - [ ] provider_type の不正値テストはまだ無い（themes は埋めた）。固有ルールの穴を完全に塞ぐなら追加余地。
 - [ ] 次は Task 10（管理者シード AdminUserSeeder・`ADMIN_SEED_PASSWORD` env必須方式）。`.env` 設定の宿題が絡む。
+
+---
+---
+
+# 【同日 追記】Task 10/11: 管理者シード と Filament 審査リソース（Phase 1 完了）
+
+**会話の概要**: env必須の管理者シーダーを作り、Filament v4 でパートナー審査画面を生成・カスタマイズして Phase 1 を完了した。「秘密はコードに書かない」「日本語ラベルをどの層に置くか（クリーンアーキ）」「cast が不正値を弾く」を学んだ。
+
+## 今日学んだ概念（Task 10/11）
+
+### Seeder（シーダー）
+- **何か**: DB に初期データを投入するクラス。`php artisan db:seed` で実行。
+- **なぜ必要か**: 管理者アカウントのような「最初から必要なデータ」をコードで再現可能に用意する。手で INSERT しない。
+- **冪等（idempotent）**: 何度実行しても結果が同じになる性質。`updateOrCreate(['email'=>...], [...])` は「いれば更新・なければ作成」なので再 seed しても重複しない。
+
+### 環境変数からの秘密の受け取り（fail-safe）
+- **何か**: パスワード等を `env('ADMIN_SEED_PASSWORD')` で受け取り、未設定なら**作らずに警告で止める**。
+- **なぜ必要か**: リポジトリは公開され得る。コードに弱いパスワードを書くと、本番 seed で既知パスワードの管理者（Filament 全権）が作られる事故になる。「動く」より「安全に止まる」を優先。
+
+### Filament リソース（v4）
+- **何か**: 管理画面の CRUD を1モデル分まとめて提供する単位。`make:filament-resource Partner --generate` で生成。
+- **v4 の構造**: `app/Filament/Resources/Partners/` に `PartnerResource.php`（本体）＋ `Schemas/PartnerForm.php`（フォーム）＋ `Tables/PartnersTable.php`（一覧）＋ `Pages/` に分割。フォームは v3 の `Form` から **`Schema` ベース**に変わった。
+- **`recordTitleAttribute`**: そのレコードを1文字列で代表させる属性（パンくず・検索表示）。Partner では `display_name`。
+
+## 書いたコード（Task 10/11）
+
+### 管理者シーダー（fail-safe ＋ 冪等）
+```php
+public function run(): void
+{
+    $password = env('ADMIN_SEED_PASSWORD');
+    if (! $password) {
+        $this->command->warn('ADMIN_SEED_PASSWORD が未設定のため管理者ユーザーを作成しません。');
+        return;                                  // 安全に止まる
+    }
+    $email = env('ADMIN_SEED_EMAIL', 'admin@worldclass.jp');
+    User::updateOrCreate(
+        ['email' => $email],                     // 検索キー → 冪等
+        ['name' => 'WorldClass Admin', 'password' => Hash::make($password), 'role' => 'admin'],
+    );
+}
+```
+
+### Filament: status バッジ（cast 済み列の扱い）
+```php
+TextColumn::make('status')
+    ->badge()
+    ->formatStateUsing(fn (PartnerStatus $state): string => match ($state) {
+        PartnerStatus::Pending => '審査中',
+        PartnerStatus::Approved => '承認',
+        PartnerStatus::Suspended => '停止',
+        PartnerStatus::Rejected => '不承認',
+    })
+    ->color(fn (PartnerStatus $state): string => match ($state) {
+        PartnerStatus::Pending => 'warning',
+        PartnerStatus::Approved => 'success',
+        PartnerStatus::Suspended, PartnerStatus::Rejected => 'danger',
+    });
+```
+**ポイント解説:**
+- `status` は Task 8.6 で `PartnerStatus` に cast 済み → 閉じ関数の**引数 `$state` は enum オブジェクト**。だから `match ($state)` で型安全に分岐できる。
+- Select のオプションは `['pending' => '審査中', ...]` のように **enum の `->value`（文字列）をキー**にした日本語の明示配列。
+
+## なぜそう書くか（設計の理由）
+
+- **日本語ラベルを Domain の enum ではなく Filament（表示層）に置いた**: ラベルを enum に持たせるには Filament の `HasLabel` インターフェースを Domain の `PartnerStatus` に実装する必要がある。それは **Domain 層が Filament（フレームワーク）に依存する**ことになり、「内側は外側を知らない」クリーンアーキ原則に反する。ラベル（見た目の都合）は表示層の責務なので、Filament 側に明示配列で持たせるのが正しい層分け。
+- **`--generate` が cast を自動活用**: 生成時にモデルの cast を読み、`provider_type`/`status` を自動で Select 化してくれた。Task 8.6 の cast 投資がここで回収された。
+
+## 躓きポイント深掘り（Task 10/11）
+
+### 躓き: tinker で `"overseas_school " is not a valid backing value for enum ProviderType`
+- **何に躓いたか**: 動作確認データを作る tinker コマンドで、`'provider_type' => 'overseas_school '`（末尾に半角スペース）と打ち、`ValueError` で弾かれた。
+- **根本の仕組み**: `provider_type` は `ProviderType` enum に cast されている。Eloquent は値を代入する瞬間に `ProviderType::from('overseas_school ')` 相当を試み、有効な backing value（`'overseas_school'`）に一致しないと **ValueError を投げる**。**cast が無い素の string 列なら、末尾スペース付きの不正値が黙って保存され**、後で「一覧に出ない」等の地味なバグになっていた。型が書き込み時点で安全側に倒してくれた好例。
+- **関連技術マップ**:
+  - **`BackedEnum::from()` vs `tryFrom()`**: `from` は不一致で例外、`tryFrom` は null を返す。Eloquent の enum cast は `from` 系で厳格。
+  - **多層防御の②（アプリ型）の実演**: 入口(FormRequest)を通らない経路（tinker/直接代入）でも、cast が最後にもう一段守ってくれる。
+- **理解チェック**: 「cast 済み列に不正な文字列を代入するといつ気づける？」→ 代入/保存の瞬間に ValueError。string 列なら気づけず保存される。
+
+## 関連ノート（Task 10/11 追記分）
+
+- [2026-06-10 セキュリティレビュー観点](./2026-06-10_セキュリティレビュー観点.md) — 「秘密はコードに書かずenv／未設定なら止める」の原則。今日の AdminUserSeeder はその実装。
+- [2026-06-08 マイグレーション型とテスト環境変数デバッグ](./2026-06-08_マイグレーション型とテスト環境変数デバッグ.md) — ValueObject(enum) の初出。今日その enum が Filament の Select 自動生成・cast の値検証で効いた。
+
+## 次回への課題・疑問点（Task 10/11 追記分）
+
+- [ ] Filament の Create ページは user_id をフォームから外したため、Filament 経由の新規作成は実質非対応（パートナーは自己登録が正規フロー）。Phase 2 以降で Create を無効化 or 調整するか検討。
+- [ ] **Phase 1 完了。次は Phase 2（カタログ・予約・Stripe）**。計画書 `docs/superpowers/plans/2026-05-24-worldclass-phase2-catalog-booking-stripe.md`。
