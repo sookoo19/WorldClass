@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('session_id')->constrained()->cascadeOnDelete();
             $table->foreignId('member_id')->constrained()->cascadeOnDelete();
-            $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('pending');
+            $table->string('status')->default('pending');
             $table->string('stripe_payment_id')->nullable();
             $table->unsignedInteger('price_paid');
             $table->unsignedInteger('support_amount'); // price_paidの50%

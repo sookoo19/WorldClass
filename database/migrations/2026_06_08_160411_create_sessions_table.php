@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('sessions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('partner_id')->constrained()->cascadeOnDelete();
-            $table->enum('session_type', ['private', 'open']);
+            $table->string('session_type');
             $table->dateTime('scheduled_at');
             $table->unsignedInteger('duration_min'); // 45 or 60
             $table->string('theme'); // ThemeType値
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->unsignedInteger('min_groups')->default(1);
             $table->boolean('with_facilitator')->default(false);
             $table->unsignedInteger('price_jpy');
-            $table->enum('status', ['draft', 'open', 'confirmed', 'ready', 'completed', 'cancelled'])->default('draft');
+            $table->string('status')->default('draft');
             $table->dateTime('ready_checked_at')->nullable();
             $table->dateTime('cancelled_at')->nullable();
             $table->timestamps();
