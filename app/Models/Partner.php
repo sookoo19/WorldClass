@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Domain\ValueObjects\PartnerStatus;
+use App\Domain\ValueObjects\ProviderType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
@@ -28,5 +30,7 @@ class Partner extends Model
     protected $casts = [
         'themes' => 'array',
         'rating_score' => 'float',
+        'provider_type' => ProviderType::class,
+        'status' => PartnerStatus::class,
     ];
 }

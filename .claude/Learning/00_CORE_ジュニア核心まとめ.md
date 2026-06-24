@@ -44,17 +44,33 @@
 - 失敗するテストを先に書く（🔴）→ 通る最小コード（🟢）→ 通したまま整える（🔵）。テストが安全網になりデグレを即検知。
 - **モックは「外部」を差し替える道具**: DB・メール送信など、検証したい対象の外側を偽物にして、対象のロジックだけを浮かび上がらせる。
 - **Facade モック（応用）**: `DB::transaction` を入れると Unit が実DBに繋ぎに行って落ちる → `DB::shouldReceive('transaction')->andReturnUsing(fn($cb)=>$cb())` で「皮だけ剥がし、中身ロジックは本番どおり」走らせる。
-- → 詳細: [2026-06-09](./2026-06-09_TDD-UseCase-UnitTest.md)、[2026-06-23 Inertia登録フォーム…（追記Task8.5）](./2026-06-23_Inertia登録フォームTSX化と周辺設定の罠.md)
+- **既存コードへのテスト（characterization）**: 実装が先にある場合、happy path は**初回から緑が正常**（純粋なRedは出ない）。狙いは回帰の安全網。それでも「書く→実行して観察」は省かない。初回で**赤**なら配線バグの本物の発見。
+- → 詳細: [2026-06-09](./2026-06-09_TDD-UseCase-UnitTest.md)、[2026-06-23 Inertia登録フォーム…（追記Task8.5）](./2026-06-23_Inertia登録フォームTSX化と周辺設定の罠.md)、[2026-06-24 追記Task9](./2026-06-24_enum→string化とbacked-enum-cast.md)（Feature/characterization）
+
+### 原則: テストは「本数」でなく「検証された分岐の種類」で考える
+- **共有ロジックは1回だけテスト、重複させない**: 複数の入口が**同一のルール/仕組み**（例: 両FormRequestに同じ `email unique`）を使うなら、片方で1回テストすれば担保される。両方に同じテストを書くのは冗長。
+- **代わりに「未検証の固有ロジック」を突く**: その入口だけが持つルール（例: Partnerだけの `themes` 配列バリデーション）こそ穴になりやすい。happy path だけで満足せず、固有の分岐を狙ってテストを足す。
+- **覚え方**: 「もう1本書くなら、まだ通っていない経路を通すものを書く」。
+- → 詳細: [2026-06-24 追記Task9](./2026-06-24_enum→string化とbacked-enum-cast.md)（重複メールはMember1本／themes固有検証を追加）
 
 ---
 
 ## 3. 型と安全性 ── 間違いを「書けなくする」
 
 ### 原則: 型はバグを実行前に潰すための道具
-- **二層ガードの発想**: 「書く瞬間に防ぐ（PHP enum / TypeScript の型）」＋「保存される瞬間に防ぐ（DB の enum・unique・FK）」。層ごとに別の砦を置く。
+- **三層ガードの発想**: 許容値の防御は層で分ける。①入口（FormRequest の `Rule::enum()`）②アプリ型（PHP enum / backed enum cast）③DB（enum=CHECK制約・unique・FK）。層ごとに別の砦を置く。
+- **③（DBの最後の砦）は維持コストとのトレードオフ**: Laravel の `$table->enum()` は **Postgresでは `varchar+CHECK制約`**。状態が増えるたびに制約の作り直しマイグレーションが要る。**頻繁に状態が育つ列**（注文・セッションのstatus等）はあえて `string` 化し、防御を①②に寄せるのが保守的。**状態が安定した列**（種別マスタ等）は enum のままが安全。「全部enum/全部string」ではなく列ごとに判断。本番データが無いうちが変更最安。
 - **数値の型を選ぶ**: 金額・評価は `decimal`（正確）。`float` は2進近似で誤差が出るので金額に使わない。負があり得ない件数は `unsignedInteger`。
-- **casts() で型を取り戻す**: DBから来る値は文字列。`'email_verified_at' => 'datetime'` で日付オブジェクトに、`'password' => 'hashed'` で自動ハッシュ化。
-- → 詳細: [2026-06-08](./2026-06-08_マイグレーション型とテスト環境変数デバッグ.md)（decimal/unsigned/casts）、[2026-06-06 Laravelセッション…](./2026-06-06_Laravelセッション衝突回避とGit規約.md)（casts）
+- **casts() で型を取り戻す**: DBから来る値は文字列。`'email_verified_at' => 'datetime'`、`'password' => 'hashed'`、`'status' => PartnerStatus::class`（**backed enum cast**＝DB文字列⇄PHP enumを読み書きで自動変換）。enum cast は JSON化時に自動で `.value`（文字列）へ戻るのでフロントは壊れない。
+- **⚠️ cast は「その列を文字列比較してる箇所」と必ずセットで確認**: 既に `match($x->role)` や `in_array($x->role, $roles, true)` のように**文字列で厳密比較**しているコードがある列を enum cast すると、比較が全て false 化し、分岐や認可が**エラーも出さず黙って壊れる**。cast するなら比較箇所も enum比較に直すか、その列は string のまま据え置く。
+- **⚠️ cast列は「whereの引数」と「取得後の属性」で型が違う**: `Model::where('status', 'pending')` の引数は**生の文字列**（DB値と照合）。一方 `$model->status` は cast が効いて **enumオブジェクト** → 比較は `->value` で。同じ列でも文脈で型が変わる。
+- → 詳細: [2026-06-08](./2026-06-08_マイグレーション型とテスト環境変数デバッグ.md)（decimal/unsigned/casts）、[2026-06-06 Laravelセッション…](./2026-06-06_Laravelセッション衝突回避とGit規約.md)（casts）、[2026-06-24 enum→string化とbacked-enum-cast](./2026-06-24_enum→string化とbacked-enum-cast.md)（CHECK制約のトレードオフ / cast / roleをcastしない理由）
+
+### 原則: 静的解析が型を追えるよう「情報を渡す」のも仕事のうち
+- **`Auth::user()` の戻り型はインターフェース**（`Authenticatable`）。具体的な `App\Models\User` のプロパティ/リレーションは見えない → `/** @var \App\Models\User $user */ $user = Auth::user();` で型を明示。
+- **リレーションは戻り型を書く**: larastan は `partner(): HasOne` ＋ `@return HasOne<Partner, $this>` の**戻り型**を見て `$user->partner` という magic プロパティを生成する。戻り型が無いと「未定義プロパティ」と誤検知。型注釈は人間の補足ではなく、解析器への入力。
+- **切り分け**: 注釈を足してエラーが**次の行に移った**＝その層は効いた、別の原因が残っている、と読む。1回で消えなくても「効いてない」と早合点しない。
+- → 詳細: [2026-06-24 enum→string化とbacked-enum-cast](./2026-06-24_enum→string化とbacked-enum-cast.md)（phpstan: Auth::user()型 / larastanリレーション戻り型 / phar欠落はreinstall）
 
 ### 原則: TypeScript は一括変換せず漸進移行（allowJs）
 - **核心**: `allowJs: true` で `.jsx` を残したまま、新規から `.tsx`。`strict` で厳格チェック。
@@ -138,6 +154,9 @@
 - host と container で別々に npm → ネイティブバイナリ不一致（→ §5）
 - ソース変更後に再ビルド忘れ → 画面に反映されない（build は瞬間を固める）（→ §7）
 - メソッド削除でルートを残す → 死にルートで本番500（→ §6）
+- 状態が育つ列を enum(CHECK)で固定 → 状態追加のたびに制約マイグレーション地獄（→ §3）
+- 文字列比較してる列を enum cast → match/認可が黙って全false化（→ §3）
+- 計画書の列名を鵜呑み → 実在しない列で作業。grep で実物確認してから着手（→ §7）
 
 ---
 
@@ -151,6 +170,7 @@
 - [2026-06-09 TDD-UseCase-UnitTest](./2026-06-09_TDD-UseCase-UnitTest.md)
 - [2026-06-10 セキュリティレビュー観点](./2026-06-10_セキュリティレビュー観点.md)
 - [2026-06-23 Inertia登録フォームTSX化と周辺設定の罠](./2026-06-23_Inertia登録フォームTSX化と周辺設定の罠.md)
+- [2026-06-24 enum→string化とbacked-enum-cast](./2026-06-24_enum→string化とbacked-enum-cast.md)
 
 ---
 

@@ -14,13 +14,13 @@ return new class extends Migration
         Schema::create('partners', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->enum('provider_type', ['overseas_school', 'local_japanese']);
+            $table->string('provider_type');
             $table->string('display_name'); // 校名 or 活動者名
             $table->string('country'); // 例: "ケニア"
             $table->string('region');
             $table->string('contact_name');
             $table->string('video_url')->nullable();
-            $table->enum('status', ['pending', 'approved', 'suspended', 'rejected'])->default('pending');
+            $table->string('status')->default('pending');
             $table->decimal('rating_score', 3, 2)->default(0);
             $table->unsignedInteger('penalty_count')->default(0);
             $table->unsignedInteger('support_pool')->default(0); // 物資支援プール(円)

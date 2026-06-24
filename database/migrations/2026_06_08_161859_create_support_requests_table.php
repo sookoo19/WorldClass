@@ -17,7 +17,7 @@ return new class extends Migration
             $table->json('item_list'); // 申請内容 [{name,quantity, unit_price}]
             $table->unsignedInteger('claimed_amount_jpy'); // 領収書記載の申請額
             $table->string('receipt_photo_url'); // 領収書写真(証拠の核、必須)
-            $table->enum('status', ['pending', 'approved', 'rejected', 'paid'])->default('pending');
+            $table->string('status')->default('pending');
             $table->unsignedInteger('approved_amount_jpy')->nullable();
             $table->text('rejection_reason')->nullable();
             $table->dateTime('reviewed_at')->nullable();
