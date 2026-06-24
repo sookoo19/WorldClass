@@ -15,8 +15,11 @@ class DashboardController extends Controller
 
     public function partner(): Response
     {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
         return Inertia::render('Dashboard/Partner', [
-            'status' => Auth::user()->partner?->status,
+            'status' => $user->partner?->status,
         ]);
     }
 }
