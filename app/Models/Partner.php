@@ -22,6 +22,16 @@ class Partner extends Model
         return $this->hasMany(Session::class);
     }
 
+    public function schedules()
+    {
+        return $this->hasMany(PartnerSchedule::class);
+    }
+
+    public function scheduleBlocks()
+    {
+        return $this->hasMany(PartnerScheduleBlock::class);
+    }
+
     public function supportRequests()
     {
         return $this->hasMany(SupportRequest::class);

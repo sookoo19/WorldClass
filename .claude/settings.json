@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "pint + phpstan (CI先取り)",
+            "timeout": 120,
+            "command": "f=$(python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get(\"tool_input\",{}).get(\"file_path\") or d.get(\"tool_response\",{}).get(\"filePath\") or \"\")'); [ -z \"$f\" ] && exit 0; case \"$f\" in *.php) ;; *) exit 0;; esac; rel=\"${f#\"$PWD\"/}\"; docker compose exec -T -w /var/www/html app true 2>/dev/null || exit 0; docker compose exec -T -w /var/www/html app ./vendor/bin/pint \"$rel\" >/dev/null 2>&1 || true; case \"$rel\" in app/*) out=$(docker compose exec -T -w /var/www/html app ./vendor/bin/phpstan analyse \"$rel\" --no-progress --no-ansi 2>&1) || { echo \"$out\"; exit 2; };; esac"
+          }
+        ]
+      }
+    ]
+  }
+}
