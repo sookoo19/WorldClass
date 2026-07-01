@@ -81,13 +81,17 @@ docker compose exec app npm run dev               # フロント開発サーバ
 | 技術方針 | `docs/superpowers/specs/2026-05-25-worldclass-engineering-principles.md` |
 | Phase 1 プラン | `docs/superpowers/plans/2026-05-23-worldclass-plan1-foundation-laravel.md` |
 | Phase 2 プラン | `docs/superpowers/plans/2026-05-24-worldclass-phase2-catalog-booking-stripe.md` |
+| Phase 2.5 プラン | `docs/superpowers/plans/2026-06-10-worldclass-phase2.5-open-session.md` |
+| Phase 3 プラン | `docs/superpowers/plans/2026-06-10-worldclass-phase3-preparation-flow.md` |
+| Phase 4 プラン | `docs/superpowers/plans/2026-06-10-worldclass-phase4-supply-reimbursement.md` |
 
 ---
 
 ## 実装フェーズ
 
-| フェーズ | 内容 |
-|---|---|
-| Phase 1 | 認証・DB基盤・クリーンアーキ骨格 |
-| Phase 2 | カタログ・予約・Stripe決済 |
-| Phase 3〜5 | 準備フロー・物資支援・自治体ダッシュボード |
+| フェーズ | 内容 | 状況 |
+|---|---|---|
+| Phase 1 | 認証・DB基盤・クリーンアーキ骨格 | ✅ 完了 |
+| Phase 2 | カタログ・予約・Stripe決済 | 🚧 進行中 |
+| Phase 2.5 | オープンセッション（複数団体合同） | ⬜ 未着手 |
+| Phase 3〜5 | 準備フロー・物資支援・自治体ダッシュボード | ⬜ 未着手 |
