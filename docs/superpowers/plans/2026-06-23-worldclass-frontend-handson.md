@@ -4,7 +4,7 @@
 
 **Goal:** Claude Design が作成した handoff（`handoff/`）の確定デザイン（Calm Blue / Direction B）を、プロジェクト方針である **Inertia.js + React + TypeScript (.tsx)** に変換しながら取り込み、B-1 セッション一覧 / B-2 セッション詳細 / B-3 マイページの3画面と共通基盤（デザイントークン・部品ライブラリ）を実装する。
 
-**Architecture:** handoff は presentation 層のみ（クリーンアーキの内側には触れない）。実データ接続は **Controller で DB → handoff のデータ形へ整形する Presenter** を境界に置く（コントローラは薄く保つ）。各 Page は props 既定値として mock を持ち、Presenter が同形の props を渡せばコード変更なしで実データへ切り替わる。
+**Architecture:** handoff は presentation 層のみ（クリーンアーキの内側には触れない）。実データ接続は **Controller で DB → handoff のデータ形へ整形する Presenter** を境界に置く（コントローラは薄く保つ）。各 Page の props は**必須**とし、mock はプレビュー専用ページ（`*Preview.tsx`・接続後に削除）から明示的に渡す。Presenter が同形の props を渡せば Page 本体はコード変更なしで実データへ切り替わる。
 
 **Tech Stack:** Laravel 13 / Inertia.js + React **(.tsx)** / Tailwind CSS + `@tailwindcss/forms` / Ziggy (`@routes` / `route()`) / Pest（PHPUnitスタイル, Presenter のみ）
 
@@ -17,7 +17,7 @@
   - **phase 計画（BE）が所有:** Controller・route・UseCase・Repository・Job・Filament・Mailable。Controller は **本 FE 計画が定義した component 名＋ Presenter が返す props 形**で `Inertia::render` する。
   - 各ページ Task に「**BE 接続契約**」ブロックを置き、`route名 / controller@method（所属phase） / component / props` を明示する。phase2.5/3 側の該当 Task は **FE ページ作成 Step を持たず、本計画を参照する**（重複実装しない）。
 - **UI 文言・通貨はすべて日本語 / 円（`¥` + `toLocaleString()`）。** handoff の文言をそのまま維持。
-- **日時は UTC 保存 → 表示時に `Asia/Tokyo` へ変換。** `date` / `dow` / `time` は Presenter で JST 整形して文字列で渡す（フロントで再計算しない）。
+- **日時は UTC 保存 → 表示時に `Asia/Tokyo` へ変換。** `date` / `dow` / `time` は Presenter で JST 整形して文字列で渡す（フロントで再計算しない）。**例外:** ISO8601 を props で受けてフロントで `toLocaleString('ja-JP')` する画面（B-6 Complete / B-9 Ratings / Partner 詳細）は**閲覧者のローカル時刻**で表示する（海外パートナーが現地時刻で見えるのは意図どおり）。
 - **デザイントークンは2系統。** Tailwind 静的クラス = `tailwind.config.js` の `colors.wc`。動的マップ（テーマ色・プレースホルダー色）= `theme.ts`。新規の色は必ずこの2箇所のどちらかに足す（マジックHEXをJSXに直書きしない）。
 - **追加 npm パッケージなし。** 既存依存（`@inertiajs/react` ^2 / `react` ^18 / `typescript` ^5.4 / `@tailwindcss/forms`）のみで完結。
 
@@ -58,10 +58,13 @@ resources/
 │   └── Pages/
 │       ├── OpenSessions/
 │       │   ├── Index.tsx                  # Create: B-1 一覧（handoff Sessions/Index 由来）
+│       │   ├── IndexPreview.tsx           # Create: mock プレビュー専用（phase2.5 接続後に削除）
 │       │   ├── Show.tsx                   # Create: B-2 詳細・申込（handoff Sessions/Show 由来）
+│       │   ├── ShowPreview.tsx            # Create: mock プレビュー専用（phase2.5 接続後に削除）
 │       │   └── Complete.tsx               # Create: B-6 申込完了（Calm Blue で新規design）
 │       ├── MyPage/
-│       │   └── Index.tsx                  # Create: B-3 マイページ
+│       │   ├── Index.tsx                  # Create: B-3 マイページ
+│       │   └── IndexPreview.tsx           # Create: mock プレビュー専用（phase3 接続後に削除）
 │       ├── Ratings/
 │       │   └── Create.tsx                 # Create: B-9 評価フォーム（Calm Blue で新規design）
 │       ├── Sessions/
@@ -131,12 +134,12 @@ handoff 版 `app.blade.php` は `.jsx` 固定（`...{$page['component']}.jsx`）
 
 ```js
 resolvePageComponent(
-    `./Pages/${name}.tsx`,
+    [`./Pages/${name}.tsx`, `./Pages/${name}.jsx`],
     import.meta.glob('./Pages/**/*.{jsx,tsx}'),
 ),
 ```
 
-> Breeze 既定は `./Pages/${name}.jsx` と `*.jsx` glob のことが多い。`.tsx` ページ（`Dashboard/Member.tsx` 等）が読めていない場合はここが原因。`.tsx` を先に試し、無ければ `.jsx` にフォールバックする実装が安全。
+> Breeze 既定は `./Pages/${name}.jsx` と `*.jsx` glob のことが多い。`.tsx` ページ（`Dashboard/Member.tsx` 等）が読めていない場合はここが原因。上の配列指定で `.tsx` を先に試し、無ければ `.jsx`（Breeze 認証画面等の既存ページ）にフォールバックする。
 
 - [ ] **Step 4: 動作確認**
 
@@ -178,9 +181,9 @@ git commit -m "feat(frontend): add WorldClass design tokens, fonts, and tsx vite
 ```ts
 export type SessionTheme = '文化交流' | '国際理解' | '英語学習';
 
-// StatusPill は status === 'confirmed' のみを判定し、それ以外は「あとn組で成立」を描画する。
-// mock の 'needs1' / 'needs2' も confirmed 以外として同一描画される。
-export type SessionStatus = 'confirmed' | 'open' | 'needs1' | 'needs2';
+// Presenter が返す実契約に合わせた2値。成立までの残数は groups / minGroups から導出する。
+// StatusPill は 'confirmed' のみを判定し、'open' は「あとn組で成立」を描画する。
+export type SessionStatus = 'confirmed' | 'open';
 
 export interface SessionSummary {
     id: number | string;
@@ -536,6 +539,7 @@ git commit -m "feat(frontend): port WorldClassLayout and SessionCard to tsx"
 **Files:**
 - Create: `resources/js/data/mockSessions.ts`
 - Create: `resources/js/Pages/OpenSessions/Index.tsx`
+- Create: `resources/js/Pages/OpenSessions/IndexPreview.tsx`（プレビュー専用・phase2.5 接続後に削除）
 - Modify: `routes/web.php`（**暫定プレビュー用**ルート。phase2.5 Task9 の `OpenSessionController@index` が本実装で置き換える）
 
 **BE 接続契約:**
@@ -546,7 +550,7 @@ git commit -m "feat(frontend): port WorldClassLayout and SessionCard to tsx"
 
 **Interfaces:**
 - Consumes: Task 2〜4 の型・部品・レイアウト
-- Produces: `Index({ sessions?: SessionSummary[] })`。props 未指定なら mock 表示。
+- Produces: `Index({ sessions: SessionSummary[] })`（props 必須）／`IndexPreview`（mock を明示的に渡すプレビュー専用ページ）。
 
 - [ ] **Step 1: mock を TSX 用に移植**
 
@@ -556,7 +560,9 @@ git commit -m "feat(frontend): port WorldClassLayout and SessionCard to tsx"
 import type { SessionSummary, SessionDetail, MyPageData } from '@/types/session';
 
 export const mockSessions: SessionSummary[] = [
-    // handoff/.../mockSessions.js の mockSessions 配列（6件）をそのまま貼り付け
+    // handoff/.../mockSessions.js の mockSessions 配列（6件）を貼り付け。
+    // ※ status は 'confirmed' | 'open' の2値に直す。handoff の 'needs1' / 'needs2' は
+    //    status: 'open' にし、groups / minGroups の値で「あとn組」を表現する（StatusPill の見た目は不変）。
 ];
 
 export const mockDetail: SessionDetail = {
@@ -578,7 +584,6 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type { SessionSummary, SessionTheme } from '@/types/session';
 import WorldClassLayout from '@/Layouts/WorldClassLayout';
 import SessionCard from '@/Components/WorldClass/SessionCard';
-import { mockSessions } from '@/data/mockSessions';
 
 const THEME_CHIPS: SessionTheme[] = ['文化交流', '国際理解', '英語学習'];
 
@@ -587,7 +592,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     return null;
 }
 
-export default function Index({ sessions = mockSessions }: { sessions?: SessionSummary[] }) {
+export default function Index({ sessions }: { sessions: SessionSummary[] }) {
     const [theme, setTheme] = useState<SessionTheme | null>(null);
     const filtered = useMemo(
         () => (theme ? sessions.filter((s) => s.theme === theme) : sessions),
@@ -599,22 +604,36 @@ export default function Index({ sessions = mockSessions }: { sessions?: SessionS
 }
 ```
 
-- [ ] **Step 3: 暫定プレビュー用ルート（Controller は作らない）**
+- [ ] **Step 3: `OpenSessions/IndexPreview.tsx`（プレビュー専用・接続後に削除）**
 
-Controller は phase2.5 が所有する（[所有境界](#global-constraints) 参照）。FE 単体で見た目を確認するため、`routes/web.php` に**暫定の**クロージャルートだけ足す。props を渡さないので Page 側の mock が出る:
+Page 本体の props は必須なので、mock はプレビュー専用ページから明示的に渡す（BE の props 渡し忘れは即エラーで見える。code splitting により mock は Index 本体のチャンクに混ざらない）:
+
+```tsx
+import Index from './Index';
+import { mockSessions } from '@/data/mockSessions';
+
+export default function IndexPreview() {
+    return <Index sessions={mockSessions} />;
+}
+```
+
+- [ ] **Step 4: 暫定プレビュー用ルート（Controller は作らない）**
+
+Controller は phase2.5 が所有する（[所有境界](#global-constraints) 参照）。FE 単体で見た目を確認するため、`routes/web.php` に**暫定の**クロージャルートだけ足し、プレビューページを render する:
 
 ```php
 use Inertia\Inertia;
 
 Route::middleware('auth')->group(function () {
-    // 暫定プレビュー。phase2.5 Task9 の OpenSessionController@index が本実装で置き換える。
-    Route::get('/open-sessions', fn () => Inertia::render('OpenSessions/Index'))->name('open-sessions.index');
+    // 暫定プレビュー。phase2.5 Task9 の OpenSessionController@index が本実装で置き換える
+    //（その際に IndexPreview.tsx とこのルートを削除する）。
+    Route::get('/open-sessions', fn () => Inertia::render('OpenSessions/IndexPreview'))->name('open-sessions.index');
 });
 ```
 
 > phase2.5 Task9 を先に実装済みなら本 Step は不要（既にルート・Controller がある）。その場合は Task 6 へ進む。
 
-- [ ] **Step 4: 動作確認**
+- [ ] **Step 5: 動作確認**
 
 ```bash
 docker compose exec app npm run dev
@@ -623,10 +642,10 @@ docker compose exec app php artisan serve   # or docker compose up
 
 ブラウザで `/open-sessions` を開き、3列カードグリッドに6件・チップで絞り込みが効くことを確認。
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 6: コミット**
 
 ```bash
-git add resources/js/data/mockSessions.ts resources/js/Pages/OpenSessions/Index.tsx routes/web.php
+git add resources/js/data/mockSessions.ts resources/js/Pages/OpenSessions/{Index,IndexPreview}.tsx routes/web.php
 git commit -m "feat(open-sessions): add B-1 list page (tsx, mock data)"
 ```
 
@@ -662,6 +681,7 @@ use App\Models\Session;
 use App\Models\SessionParticipant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class SessionViewPresenterTest extends TestCase
@@ -679,7 +699,7 @@ class SessionViewPresenterTest extends TestCase
         ]);
         $session = Session::create([
             'partner_id' => $partner->id, 'session_type' => 'open',
-            'scheduled_at' => now()->addDays(14)->setTimezone('UTC')->setTime(1, 0), // JST 10:00
+            'scheduled_at' => Carbon::parse('2026-07-18 01:00:00', 'UTC'), // JST 2026-07-18(土) 10:00
             'duration_min' => 45, 'theme' => 'culture', 'title' => 'ケニアの学校生活',
             'description' => '朝の登校から…', 'capacity' => 6, 'min_groups' => 3,
             'with_facilitator' => true, 'price_jpy' => 2500, 'status' => 'open',
@@ -711,6 +731,9 @@ class SessionViewPresenterTest extends TestCase
         $this->assertSame('小1〜小6', $out['ages']);
         $this->assertSame('open', $out['status']);
         $this->assertSame('kenya', $out['art']);
+        $this->assertSame('7/18', $out['date']);   // UTC 01:00 → JST で日付・曜日・時刻を固定検証
+        $this->assertSame('土', $out['dow']);
+        $this->assertSame('10:00', $out['time']);
     }
 }
 ```
@@ -809,11 +832,13 @@ public function index(
         ->map(fn ($s) => $presenter->summary($s))
         ->all();
 
-    return Inertia::render('OpenSessions/Index', ['sessions' => $sessions]); // 暫定プレビュールートは削除
+    return Inertia::render('OpenSessions/Index', ['sessions' => $sessions]); // 暫定ルートと IndexPreview.tsx は削除
 }
 ```
 
-> phase2.5 が未実装の段階では、Task 5 の暫定プレビュールート（mock 表示）のままでよい。phase2.5 Task9 実装時に上記へ差し替え、暫定ルートを削除する。
+> phase2.5 が未実装の段階では、Task 5 の暫定プレビュールート（mock 表示）のままでよい。phase2.5 Task9 実装時に上記へ差し替え、暫定ルートと `IndexPreview.tsx` を削除する。
+>
+> **一覧は当面ページネーションなしの全件表示とする**（ローンチ初期はセッション数が少ないため）。件数が増えた時点で `{ sessions, pagination }` 契約への拡張を別途検討する。
 
 - [ ] **Step 6: コミット**
 
@@ -828,6 +853,7 @@ git commit -m "feat(presenter): add SessionViewPresenter (DB session → handoff
 
 **Files:**
 - Create: `resources/js/Pages/OpenSessions/Show.tsx`
+- Create: `resources/js/Pages/OpenSessions/ShowPreview.tsx`（プレビュー専用・phase2.5 接続後に削除）
 - Modify: `routes/web.php`（**暫定プレビュー用**。phase2.5 の `OpenSessionController@show` が本実装で置き換える）
 
 **BE 接続契約:**
@@ -853,11 +879,12 @@ import ProgressBar from '@/Components/WorldClass/ProgressBar';
 import Stars from '@/Components/WorldClass/Stars';
 import { Pill, StatusPill, ThemePill } from '@/Components/WorldClass/Pill';
 import { WC_ART_TONES } from '@/Components/WorldClass/theme';
-import { mockDetail, mockSessions } from '@/data/mockSessions';
+import { mockDetail } from '@/data/mockSessions';
 
 const TABS = ['セッション内容', 'パートナー紹介', '物資支援の実績', 'よくある質問'];
 
-export default function Show({ session = mockSessions[0], detail = mockDetail }: { session?: SessionSummary; detail?: SessionDetail }) {
+// session は必須。detail は供給元未定のため当面 mock 既定のまま（BE 接続契約参照）
+export default function Show({ session, detail = mockDetail }: { session: SessionSummary; detail?: SessionDetail }) {
     const s = session;
     const d = detail;
     const [tab, setTab] = useState<number>(0);
@@ -867,26 +894,38 @@ export default function Show({ session = mockSessions[0], detail = mockDetail }:
 }
 ```
 
-- [ ] **Step 2: 暫定プレビュー用ルート（Controller は作らない）**
+- [ ] **Step 2: `OpenSessions/ShowPreview.tsx`（プレビュー専用・接続後に削除）**
 
-Controller（`OpenSessionController@show`）は phase2.5 が所有・実装する。FE 単体確認用に、`routes/web.php` に暫定クロージャだけ足す（props を渡さず mock 表示）:
+```tsx
+import Show from './Show';
+import { mockSessions } from '@/data/mockSessions';
+
+export default function ShowPreview() {
+    return <Show session={mockSessions[0]} />;
+}
+```
+
+- [ ] **Step 3: 暫定プレビュー用ルート（Controller は作らない）**
+
+Controller（`OpenSessionController@show`）は phase2.5 が所有・実装する。FE 単体確認用に、`routes/web.php` に暫定クロージャだけ足し、プレビューページを render する:
 
 ```php
 Route::middleware('auth')->group(function () {
-    // 暫定プレビュー。phase2.5 の OpenSessionController@show が本実装で置き換える。
-    Route::get('/open-sessions/{id}', fn () => Inertia::render('OpenSessions/Show'))
+    // 暫定プレビュー。phase2.5 の OpenSessionController@show が本実装で置き換える
+    //（その際に ShowPreview.tsx とこのルートを削除する）。
+    Route::get('/open-sessions/{id}', fn () => Inertia::render('OpenSessions/ShowPreview'))
         ->whereNumber('id')->name('open-sessions.show');
 });
 ```
 
 > 実データ接続（`findOpenSession($id)` → 404 / Presenter で `session` props）と Feature テストは **phase2.5 の `OpenSessionController@show`** 側で行う（本 Task の「BE 接続契約」に従う）。`detail`（動画・先生・物資・アジェンダ）は供給元未定のため当面 mock 表示のまま。
 
-- [ ] **Step 3: ブラウザ確認 + コミット**
+- [ ] **Step 4: ブラウザ確認 + コミット**
 
 `/open-sessions/1` を開き、左カラム（プレースホルダー動画・タブ・アジェンダ）と右カラム（申込カード・先生・物資）が mock で出ることを確認。
 
 ```bash
-git add resources/js/Pages/OpenSessions/Show.tsx routes/web.php
+git add resources/js/Pages/OpenSessions/{Show,ShowPreview}.tsx routes/web.php
 git commit -m "feat(open-sessions): add B-2 detail page (tsx, mock data)"
 ```
 
@@ -896,11 +935,12 @@ git commit -m "feat(open-sessions): add B-2 detail page (tsx, mock data)"
 
 **Files:**
 - Create: `resources/js/Pages/MyPage/Index.tsx`
+- Create: `resources/js/Pages/MyPage/IndexPreview.tsx`（プレビュー専用・phase3 接続後に削除）
 - Modify: `routes/web.php`
 
 **Interfaces:**
 - Consumes: Task 2〜4 の型・部品・レイアウト、`mockMyPage` / `mockSessions`
-- Produces: `route('mypage')`。`Index({ mypage?: MyPageData; nextSession?: SessionSummary })`。
+- Produces: `route('mypage')`。`Index({ mypage: MyPageData; nextSession: SessionSummary })`（props 必須）／`IndexPreview`（mock を明示的に渡すプレビュー専用ページ）。
 
 > マイページの実データ化は **phase3（準備フロー）** の範囲。ここでは mock 表示までを作り、phase3 で `MyPageData` を返す Presenter/Controller を実装する（その際もこの Page はコード変更不要）。
 
@@ -917,7 +957,6 @@ import Placeholder from '@/Components/WorldClass/Placeholder';
 import Stars from '@/Components/WorldClass/Stars';
 import { Pill, StatusPill, ThemePill } from '@/Components/WorldClass/Pill';
 import { WC_ART_TONES } from '@/Components/WorldClass/theme';
-import { mockMyPage, mockSessions } from '@/data/mockSessions';
 
 const STEP_STYLES: Record<StepState, string> = {
     done: 'bg-wc-green-bg text-wc-green',
@@ -929,7 +968,7 @@ function CardLabel({ children }: { children: ReactNode }) {
     return <div className="mb-3 text-[11.5px] font-extrabold tracking-wider text-wc-muted">{children}</div>;
 }
 
-export default function Index({ mypage = mockMyPage, nextSession = mockSessions[0] }: { mypage?: MyPageData; nextSession?: SessionSummary }) {
+export default function Index({ mypage, nextSession }: { mypage: MyPageData; nextSession: SessionSummary }) {
     const m = mypage;
     const s = nextSession;
     // 以降の return は handoff/.../MyPage/Index.jsx の 26〜194 行をそのまま貼り付け。
@@ -937,22 +976,33 @@ export default function Index({ mypage = mockMyPage, nextSession = mockSessions[
 }
 ```
 
-- [ ] **Step 2: ルート**
+- [ ] **Step 2: `MyPage/IndexPreview.tsx`（プレビュー専用・接続後に削除）**
 
-`routes/web.php`（auth グループ内）:
+```tsx
+import Index from './Index';
+import { mockMyPage, mockSessions } from '@/data/mockSessions';
+
+export default function IndexPreview() {
+    return <Index mypage={mockMyPage} nextSession={mockSessions[0]} />;
+}
+```
+
+- [ ] **Step 3: ルート**
+
+`routes/web.php`（auth グループ内）。phase3 で実データの Presenter/Controller を実装する際に、`MyPage/Index` の render へ差し替えて `IndexPreview.tsx` を削除する:
 
 ```php
 use Inertia\Inertia;
 
-Route::get('/mypage', fn () => Inertia::render('MyPage/Index'))->name('mypage');
+Route::get('/mypage', fn () => Inertia::render('MyPage/IndexPreview'))->name('mypage');
 ```
 
-- [ ] **Step 3: ブラウザ確認 + コミット**
+- [ ] **Step 4: ブラウザ確認 + コミット**
 
 `/mypage` を開き、実績サマリー3枚・準備ステップ（done/now/todo の色分け）・質問リスト・物資レポート・履歴が出ることを確認。
 
 ```bash
-git add resources/js/Pages/MyPage/Index.tsx routes/web.php
+git add resources/js/Pages/MyPage/{Index,IndexPreview}.tsx routes/web.php
 git commit -m "feat(mypage): add B-3 my page (tsx, mock data)"
 ```
 
@@ -1107,7 +1157,7 @@ git commit -m "feat(ratings): add B-9 rating form page (tsx, calm blue)"
 
 ## Task 11: 当日チェックリスト（Sessions/Checklist.tsx・静的・Calm Blue）
 
-静的ページ。phase3 の `session-checklist` ルート（`Inertia::render('Sessions/Checklist')`）から render。
+静的ページ。phase3 の `session-checklist` ルート（`Inertia::render('Sessions/Checklist')`）から render。**`OpenSessions/` ではなく `Sessions/` 配下に置くのは意図的**（チェックリストは将来の団体（group）セッションでも共用する汎用ページのため。Global Constraints のリネーム規則の例外）。
 
 **Files:**
 - Create: `resources/js/Pages/Sessions/Checklist.tsx`
@@ -1177,7 +1227,7 @@ phase3 の素実装は **UI 文言が英語**（全日本語ルール違反）�
 **BE 接続契約:**
 - route: 表示 `partner.sessions.show`（GET `/partner/sessions/{session}`）／ready 送信は POST `/partner/sessions/{session}/ready`。**phase3 Task9 が所有**。
 - component: `Partner/SessionDetail`
-- props: `{ session: { id: number; scheduled_at: string; status: string; questions: { id: number; question_list: string }[] } }`
+- props: `{ session: { id: number; scheduledAt: string; status: string; questions: { id: number; questionList: string }[] } }`（DB の snake_case → camelCase 変換は phase3 の Controller 側の責務。props 命名は全ページ camelCase に統一）
 
 - [ ] **Step 1: `SessionDetail.tsx`**
 
@@ -1188,15 +1238,15 @@ import WorldClassLayout from '@/Layouts/WorldClassLayout';
 interface Props {
     session: {
         id: number;
-        scheduled_at: string;
+        scheduledAt: string;
         status: string;
-        questions: { id: number; question_list: string }[];
+        questions: { id: number; questionList: string }[];
     };
 }
 
 export default function SessionDetail({ session }: Props) {
     const markReady = () => router.post(`/partner/sessions/${session.id}/ready`);
-    const dt = new Date(session.scheduled_at).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+    const dt = new Date(session.scheduledAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
 
     return (
         <WorldClassLayout>
@@ -1212,7 +1262,7 @@ export default function SessionDetail({ session }: Props) {
                 <div className="mt-3 flex flex-col gap-2.5">
                     {session.questions.map((q) => (
                         <div key={q.id} className="whitespace-pre-wrap rounded-card bg-white p-4 text-[13.5px] font-semibold leading-relaxed text-wc-text shadow-card">
-                            {q.question_list}
+                            {q.questionList}
                         </div>
                     ))}
                 </div>
@@ -1326,7 +1376,7 @@ git commit -m "feat(frontend): add responsive breakpoints to session and mypage 
 - **phase2.5 Task10（旧 `OpenSessions/Index.tsx` / `Complete.tsx` 作成）→ 削除**。本計画 Task5/9 を参照。
 - **phase2.5 Task9 `OpenSessionController@index`** → 素の snake_case map をやめ `SessionViewPresenter` で `OpenSessions/Index` を render（本計画 Task6 Step5 の契約）。`@show`（B-2 詳細）を新規追加。
 - **phase3 Task8（`Ratings/Create.tsx` 作成）→ 削除**。本計画 Task10 を参照。Controller は据置。
-- **phase3 Task9（`Sessions/Checklist.tsx` / `Partner/SessionDetail.tsx` 作成）→ 削除**。本計画 Task11/12 を参照。
+- **phase3 Task9（`Sessions/Checklist.tsx` / `Partner/SessionDetail.tsx` 作成）→ 削除**。本計画 Task11/12 を参照。また `SessionReadyController@show` は props を camelCase（`scheduledAt` / `questionList`）へ変換して渡す（本計画 Task12 の BE 接続契約）。
 
 ---
 
