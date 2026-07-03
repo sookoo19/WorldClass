@@ -25,7 +25,7 @@ AIエージェント向けのプロジェクト規約。実装前に必ず読む
 | キャッシュ/Queue | Redis 7 |
 | 決済 | Stripe Checkout |
 | 環境 | Docker Compose（カスタム） |
-| テスト | Pest |
+| テスト | PHPUnit（Pest は Laravel 13 未対応のため代替） |
 | CI | GitHub Actions |
 
 ---
@@ -46,6 +46,7 @@ Http/Controllers → UseCases → Domain（Entities / Repositories Interface）
 |---|---|
 | `app/Domain/` | ビジネスルール。Laravelに依存しない |
 | `app/UseCases/` | ユースケース。フレームワーク非依存 |
+| `app/Services/` | アプリケーションサービス（SlotService/StripeService 等。Eloquent 依存可） |
 | `app/Infrastructure/` | Eloquentリポジトリ・外部サービス実装 |
 | `app/Http/Controllers/` | リクエスト受取・UseCase呼び出し・レスポンス返却のみ |
 | `app/Models/` | Eloquentモデル（インフラ層扱い） |
@@ -156,10 +157,15 @@ docker compose exec app npm run build
 
 ---
 
-## 未実装フェーズ
+## フェーズと計画書
+
+進捗の最新状況は README の「実装フェーズ」表を参照。
 
 | フェーズ | 内容 | 計画書 |
 |---|---|---|
 | Phase 1 | 認証・DB基盤・クリーンアーキ骨格 | `docs/superpowers/plans/2026-05-23-worldclass-plan1-foundation-laravel.md` |
 | Phase 2 | カタログ・予約・Stripe | `docs/superpowers/plans/2026-05-24-worldclass-phase2-catalog-booking-stripe.md` |
-| Phase 3〜5 | 準備フロー・物資支援・自治体 | 設計書参照 |
+| Phase 2.5 | オープンセッション（複数団体合同） | `docs/superpowers/plans/2026-06-10-worldclass-phase2.5-open-session.md` |
+| Phase 3 | 準備フロー | `docs/superpowers/plans/2026-06-10-worldclass-phase3-preparation-flow.md` |
+| Phase 4 | 物資支援（リインバース） | `docs/superpowers/plans/2026-06-10-worldclass-phase4-supply-reimbursement.md` |
+| Phase 5 | 自治体ダッシュボード | 設計書参照 |
